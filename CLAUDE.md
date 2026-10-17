@@ -20,7 +20,7 @@ Jika permintaan bertentangan dengan PRD, tanyakan dulu. Jangan diam-diam mengiku
 
 ## Stack
 
-SvelteKit + Svelte 5 (runes) dengan `adapter-static` · TypeScript strict · Tailwind CSS v4 · shadcn-svelte (Bits UI) · Dexie (IndexedDB) + `liveQuery` · date-fns · rrule · adhan · ulidx · Valibot · @vite-pwa/sveltekit · Vitest · Playwright · pnpm · Cloudflare Pages.
+SvelteKit + Svelte 5 (runes) dengan `adapter-static` · TypeScript strict · Tailwind CSS v4 · shadcn-svelte (Bits UI) · Dexie (IndexedDB) + `liveQuery` · date-fns · rrule · adhan · ulidx · Valibot · service worker bawaan SvelteKit (`src/service-worker/`, lihat PRD §F9.1) · Vitest · Playwright · pnpm · Cloudflare Pages.
 
 Font di-self-host lewat `@fontsource-variable/manrope` dan `@fontsource/amiri`. Jangan memuat font dari Google Fonts CDN (app harus offline dan privat).
 
@@ -67,6 +67,7 @@ research/                  # TIDAK ADA di repo ini. Lihat "Larangan".
 
 ### Umum
 - Svelte 5 runes saja (`$state`, `$derived`, `$effect`, `$props`). Jangan pakai sintaks Svelte 4 (`export let`, `$:`, stores `writable` untuk state baru).
+- Import internal memakai `$lib/...`. SvelteKit 3 menggantinya dengan `#lib`, jadi `$lib` dipertahankan lewat `alias` di `vite.config.ts` (deprecated di Kit 3, dipakai karena shadcn-svelte masih membutuhkan alias di tsconfig).
 - TypeScript strict, tanpa `any`. Tipe datang dari `types.ts`; jangan mendefinisikan ulang bentuk entitas di tempat lain.
 - Nama variabel, fungsi, dan file dalam bahasa Inggris. Teks UI dalam bahasa Indonesia dengan sapaan "kamu".
 - Teks UI dikumpulkan di `src/lib/copy.ts` (bukan tersebar di komponen) agar siap i18n.
