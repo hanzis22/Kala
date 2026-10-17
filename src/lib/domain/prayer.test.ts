@@ -8,6 +8,7 @@ import {
   prayerLogId,
   prayerStatus,
   prayerTimes,
+  toPrayerConfig,
   type PrayerConfig
 } from './prayer';
 import { defaultSettings } from './settings';
@@ -170,5 +171,16 @@ describe('isNightForTheme (tema "ikuti waktu sholat")', () => {
     expect(isNightForTheme(wibAt(DAY, T.subuh - 1), JKT)).toBe(true);
     expect(isNightForTheme(wibAt(DAY, T.subuh), JKT)).toBe(false);
     expect(isNightForTheme(wibAt(DAY, T.isya - 1), JKT)).toBe(false);
+  });
+});
+
+describe('toPrayerConfig', () => {
+  it('null tanpa lokasi; berisi lokasi dan parameter jika ada', () => {
+    const s = defaultSettings();
+    expect(toPrayerConfig(s)).toBeNull();
+    expect(toPrayerConfig({ ...s, location: JKT.location })).toEqual({
+      location: JKT.location,
+      prayer: s.prayer
+    });
   });
 });

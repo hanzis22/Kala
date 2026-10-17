@@ -22,7 +22,8 @@ import {
   type PrayerLog,
   type PrayerName,
   type PrayerSettings,
-  type PrayerStatus
+  type PrayerStatus,
+  type Settings
 } from './types';
 
 export const PRAYER_PARAMS = {
@@ -175,4 +176,9 @@ export function isNightForTheme(now: Date, config: PrayerConfig): boolean {
   const n = nowAt(now, config);
   const t = prayerTimes(n.date, config);
   return n.minutes >= t.isya || n.minutes < t.subuh;
+}
+
+/** PrayerConfig dari Settings; null jika lokasi belum dipilih. */
+export function toPrayerConfig(settings: Pick<Settings, 'location' | 'prayer'>): PrayerConfig | null {
+  return settings.location ? { location: settings.location, prayer: settings.prayer } : null;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CITIES } from '$lib/data/cities';
-import { distanceKm, nearestCity, roundCoord } from './geo';
+import { distanceKm, locationFromCity, locationFromGps, nearestCity, roundCoord } from './geo';
 
 describe('roundCoord (privasi lokasi)', () => {
   it('membulatkan ke 2 desimal', () => {
@@ -28,5 +28,39 @@ describe('nearestCity', () => {
 
   it('menolak daftar kosong', () => {
     expect(() => nearestCity(0, 0, [])).toThrow(RangeError);
+  });
+});
+
+describe('locationFromGps', () => {
+  it('membulatkan koordinat ke 2 desimal; label dan zona dari kota terdekat', () => {
+    expect(locationFromGps(-7.257472, 112.75209, CITIES)).toEqual({
+      mode: 'gps',
+      cityId: null,
+      label: 'Surabaya',
+      lat: -7.26,
+      lng: 112.75,
+      timeZone: 'Asia/Jakarta'
+    });
+  });
+
+  it('zona waktu ikut kota terdekat (WITA)', () => {
+    expect(locationFromGps(-5.147665, 119.432732, CITIES)).toMatchObject({
+      label: 'Makassar',
+      timeZone: 'Asia/Makassar'
+    });
+  });
+});
+
+describe('locationFromCity', () => {
+  it('menyalin data kota apa adanya', () => {
+    const c = CITIES.find((x) => x.code === '3173')!;
+    expect(locationFromCity(c)).toEqual({
+      mode: 'city',
+      cityId: c.id,
+      label: 'Jakarta Pusat',
+      lat: c.lat,
+      lng: c.lng,
+      timeZone: 'Asia/Jakarta'
+    });
   });
 });

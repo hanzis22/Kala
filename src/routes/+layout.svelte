@@ -7,6 +7,8 @@
   import BottomNav from '$lib/components/BottomNav.svelte';
   import UpdateToast from '$lib/components/UpdateToast.svelte';
   import { copy } from '$lib/copy';
+  import { now } from '$lib/stores/now.svelte';
+  import { prayerLogs } from '$lib/stores/prayerLogs.svelte';
   import { settings } from '$lib/stores/settings.svelte';
   import { theme } from '$lib/stores/theme.svelte';
   import { today } from '$lib/stores/today.svelte';
@@ -15,7 +17,7 @@
   let { children }: LayoutProps = $props();
 
   onMount(() => {
-    const stops = [today.start(), settings.start(), theme.start()];
+    const stops = [today.start(), now.start(), settings.start(), prayerLogs.start(), theme.start()];
     return () => stops.forEach((stop) => stop());
   });
 

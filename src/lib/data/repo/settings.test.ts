@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '$lib/data/db';
 import { defaultSettings } from '$lib/domain/settings';
-import { completeOnboarding, ensureSettings, updateSettings } from './settings';
+import { completeOnboarding, ensureSettings, setLocation, updateSettings } from './settings';
 
 beforeEach(async () => {
   await db.settings.clear();
@@ -45,5 +45,20 @@ describe('completeOnboarding', () => {
     const at = '2026-10-17T03:40:00.000Z';
     await completeOnboarding(at);
     expect((await db.settings.get('app'))?.onboardedAt).toBe(at);
+  });
+});
+
+describe('setLocation', () => {
+  it('menyimpan lokasi ke Settings', async () => {
+    const location = {
+      mode: 'gps' as const,
+      cityId: null,
+      label: 'Surabaya',
+      lat: -7.26,
+      lng: 112.75,
+      timeZone: 'Asia/Jakarta'
+    };
+    await setLocation(location);
+    expect((await db.settings.get('app'))?.location).toEqual(location);
   });
 });
