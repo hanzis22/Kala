@@ -116,7 +116,7 @@
       aria-label={t.searchLabel}
       placeholder={t.searchLabel}
       autocomplete="off"
-      class="min-h-11 w-full rounded-md border border-line bg-ground px-4 text-body text-ink placeholder:text-muted"
+      class="min-h-11 w-full rounded-md border border-line bg-ground px-4 text-field text-ink placeholder:text-muted"
     />
 
     {#if loadError}

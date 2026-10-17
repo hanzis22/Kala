@@ -45,6 +45,7 @@ Semua warna punya pasangan terang dan gelap. Komponen hanya memakai token, tidak
 - **Amiri** untuk teks Arab pendek (basmalah, doa, dzikir), gaya `arabic`, selalu dengan `lang="ar"` dan `dir="rtl"`.
 - `overline` ditulis huruf kapital dengan letter-spacing 0.04em, untuk label kecil seperti "WAKTU MAGHRIB" atau "HITUNG MUNDUR".
 - Ukuran teks terkecil 12px. Jangan pakai berat di bawah 500 untuk teks berukuran 12–13px.
+- Kolom isian teks (input, textarea, select) memakai `text-field` (16px; bukan `text-input`, yang sudah dipakai warna shadcn `input`), tidak pernah lebih kecil: di bawah 16px Safari iOS otomatis memperbesar halaman saat kolom diketuk, dan karena Kala SPA, zoom itu terbawa ke semua halaman.
 
 ## Ruang dan bentuk
 

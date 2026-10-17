@@ -150,6 +150,10 @@
   --text-heading-md--line-height: 24px;
   --text-body: 15px;
   --text-body--line-height: 22px;
+  /* Kolom isian teks (input/textarea/select). Minimal 16px: di bawah itu Safari iOS otomatis
+     memperbesar halaman saat kolom diketuk, dan zoom itu terbawa ke semua halaman (SPA). */
+  --text-field: 16px;
+  --text-field--line-height: 22px;
   --text-label: 13px;
   --text-label--line-height: 18px;
   --text-caption: 12px;

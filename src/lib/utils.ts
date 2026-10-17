@@ -9,7 +9,7 @@ import { createTV } from 'tailwind-variants';
 const twMergeConfig = {
   extend: {
     theme: {
-      text: ['display', 'heading-xl', 'heading-md', 'body', 'label', 'caption', 'arabic']
+      text: ['display', 'heading-xl', 'heading-md', 'body', 'field', 'label', 'caption', 'arabic']
     }
   }
 };
