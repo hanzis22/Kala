@@ -182,7 +182,7 @@ Sisa teks setelah token dikenali menjadi judul. Parser adalah fungsi murni `pars
 
 ### F9. PWA & offline
 
-1. Manifest + service worker benar-benar ter-deploy (`@vite-pwa/sveltekit`), ikon 192/512 + maskable.
+1. Manifest + service worker benar-benar ter-deploy, ikon 192/512 + maskable. Service worker memakai fitur bawaan SvelteKit (`src/service-worker/` + `$app/manifest`), bukan `@vite-pwa/sveltekit`: versi 1.1.0 tidak mendukung build SvelteKit 3 (Vite environments) sehingga tidak menghasilkan `sw.js` (keputusan Fase 0, 17-10-2026). Manifest statis di `static/manifest.webmanifest`.
 2. Seluruh app berjalan tanpa jaringan setelah kunjungan pertama, termasuk font (self-host, bukan Google Fonts CDN).
 3. Prompt instal sendiri setelah user memakai app 2 hari berbeda, bisa ditutup dan tidak muncul lagi selama 14 hari.
 4. Saat versi baru tersedia: toast "Versi baru tersedia · Muat ulang".
