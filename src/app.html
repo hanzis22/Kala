@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="text-scale" content="scale" />
+    <meta name="theme-color" content="#A3461F" />
+    <meta name="description" content="Planner harian pelajar: jadwal belajar, ibadah, dan rutinitas." />
+    <link rel="icon" href="%sveltekit.assets%/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="%sveltekit.assets%/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon-180x180.png" />
+    <link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+    <title>Kala</title>
+    <script>
+      // Pasang tema tersimpan sebelum render pertama (lihat stores/theme.svelte.ts).
+      try {
+        var t = localStorage.getItem('kala:theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>
