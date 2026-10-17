@@ -186,7 +186,7 @@ Sisa teks setelah token dikenali menjadi judul. Parser adalah fungsi murni `pars
 1. Nama panggilan.
 2. Lokasi (GPS / pilih kota), ihtiyat, koreksi per waktu sholat.
 3. **Penyesuaian tanggal Hijriah** −2 s.d. +2 hari. Alasan: kalender Umm al-Qura bawaan browser bisa berbeda sehari dengan keputusan Kemenag.
-4. Tema: Ikuti sistem (default) / Terang / Gelap / Ikuti waktu sholat (gelap otomatis dari Isya sampai Subuh).
+4. Tema: Ikuti sistem (default) / Terang / Gelap / Ikuti waktu sholat (gelap otomatis dari Isya sampai Subuh di lokasi tersimpan; di luar itu mengikuti tema sistem; tanpa lokasi = ikuti sistem).
 5. Hari pertama minggu (Senin default), tampilkan Minggu di timetable.
 6. Data: **Ekspor** (file JSON), **Impor** (pilih: gabungkan atau ganti semua), **Hapus semua data** (konfirmasi dengan mengetik "HAPUS").
 7. Tentang: versi app, kebijakan privasi, kirim masukan (tautan formulir).
