@@ -1,0 +1,183 @@
+/*
+ * Token design system Senja. Sumber: docs/design/SENJA.md (design system Senja).
+ * Komponen HANYA memakai token ini lewat kelas Tailwind (bg-card, text-ink, rounded-xl, ...)
+ * atau var(--nama-token). Jangan menulis hex langsung di komponen.
+ *
+ * Tema: default ikut sistem. <html data-theme="light|dark"> memaksa tema
+ * (diatur oleh pengaturan tema, termasuk mode "ikuti waktu sholat").
+ */
+@import '@fontsource-variable/manrope';
+@import '@fontsource/amiri/400.css';
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light;
+  --surface-ground: #f7efe6;
+  --surface-card: #fffcf8;
+  --surface-sunken: #f0e4d8;
+  --line: #eadbcb;
+  --ink: #2a1f19;
+  --ink-muted: #6a564a;
+  --ink-disabled: #a8968a;
+  --brand: #a3461f;
+  --brand-pressed: #86391a;
+  --on-brand: #ffffff;
+  --brand-soft: #f6decf;
+  --brand-ink: #7a3416;
+  --teal: #2b6661;
+  --teal-soft: #dcece9;
+  --class: #3b4f88;
+  --class-soft: #e7e8f2;
+  --sky-fajar: #f5e3cb;
+  --sky-senja: #f1cdb1;
+  --sky-ink: #3a1e10;
+  --sky-ink-muted: #6b412c;
+  --sky-surface: rgba(255, 252, 248, 0.55);
+  --sky-line: rgba(58, 30, 16, 0.18);
+  --sun: #d98b2b;
+  --danger: #b3261e;
+  --focus-ring: #2b6661;
+  --scrim: rgba(42, 31, 25, 0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --surface-ground: #17110e;
+    --surface-card: #221a15;
+    --surface-sunken: #2c221c;
+    --line: #3a2d25;
+    --ink: #f2e8e0;
+    --ink-muted: #bba898;
+    --ink-disabled: #6e5e53;
+    --brand: #e58a5e;
+    --brand-pressed: #f0a27c;
+    --on-brand: #1a110c;
+    --brand-soft: #3a2419;
+    --brand-ink: #f2b394;
+    --teal: #8cc9be;
+    --teal-soft: #1e302d;
+    --class: #b4c0ec;
+    --class-soft: #262a3d;
+    --sky-fajar: #2b1d17;
+    --sky-senja: #3a2419;
+    --sky-ink: #f5eae2;
+    --sky-ink-muted: #c4ae9e;
+    --sky-surface: rgba(23, 17, 14, 0.45);
+    --sky-line: rgba(245, 234, 226, 0.18);
+    --sun: #f1e3b5;
+    --danger: #f2b8b5;
+    --focus-ring: #8cc9be;
+    --scrim: rgba(0, 0, 0, 0.6);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface-ground: #17110e;
+  --surface-card: #221a15;
+  --surface-sunken: #2c221c;
+  --line: #3a2d25;
+  --ink: #f2e8e0;
+  --ink-muted: #bba898;
+  --ink-disabled: #6e5e53;
+  --brand: #e58a5e;
+  --brand-pressed: #f0a27c;
+  --on-brand: #1a110c;
+  --brand-soft: #3a2419;
+  --brand-ink: #f2b394;
+  --teal: #8cc9be;
+  --teal-soft: #1e302d;
+  --class: #b4c0ec;
+  --class-soft: #262a3d;
+  --sky-fajar: #2b1d17;
+  --sky-senja: #3a2419;
+  --sky-ink: #f5eae2;
+  --sky-ink-muted: #c4ae9e;
+  --sky-surface: rgba(23, 17, 14, 0.45);
+  --sky-line: rgba(245, 234, 226, 0.18);
+  --sun: #f1e3b5;
+  --danger: #f2b8b5;
+  --focus-ring: #8cc9be;
+  --scrim: rgba(0, 0, 0, 0.6);
+}
+
+@theme inline {
+  --color-ground: var(--surface-ground);
+  --color-card: var(--surface-card);
+  --color-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--ink-muted);
+  --color-disabled: var(--ink-disabled);
+  --color-brand: var(--brand);
+  --color-brand-pressed: var(--brand-pressed);
+  --color-on-brand: var(--on-brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+  --color-class: var(--class);
+  --color-class-soft: var(--class-soft);
+  --color-sky-fajar: var(--sky-fajar);
+  --color-sky-senja: var(--sky-senja);
+  --color-sky-ink: var(--sky-ink);
+  --color-sky-muted: var(--sky-ink-muted);
+  --color-sky-surface: var(--sky-surface);
+  --color-sky-line: var(--sky-line);
+  --color-sun: var(--sun);
+  --color-danger: var(--danger);
+  --color-focus: var(--focus-ring);
+  --color-scrim: var(--scrim);
+
+  --font-sans: 'Manrope Variable', system-ui, sans-serif;
+  --font-arabic: 'Amiri', 'Noto Naskh Arabic', serif;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+
+  --shadow-fab: 0 10px 24px rgba(0, 0, 0, 0.18);
+
+  /* Skala teks Senja: text-display, text-heading-xl, ... */
+  --text-display: 40px;
+  --text-display--line-height: 44px;
+  --text-heading-xl: 28px;
+  --text-heading-xl--line-height: 32px;
+  --text-heading-md: 17px;
+  --text-heading-md--line-height: 24px;
+  --text-body: 15px;
+  --text-body--line-height: 22px;
+  --text-label: 13px;
+  --text-label--line-height: 18px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-arabic: 20px;
+  --text-arabic--line-height: 32px;
+}
+
+@layer base {
+  html {
+    background: var(--surface-ground);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  [lang='ar'] {
+    font-family: var(--font-arabic);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

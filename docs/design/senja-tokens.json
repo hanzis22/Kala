@@ -1,0 +1,101 @@
+{
+  "name": "Senja",
+  "version": 1,
+  "color": {
+    "themes": [
+      { "id": "light", "name": "Terang" },
+      { "id": "dark", "name": "Gelap" }
+    ],
+    "tokens": [
+      { "name": "surface-ground", "value": { "light": "#F7EFE6", "dark": "#17110E" }, "usage": "Latar halaman. Krem hangat (terang) atau cokelat sangat gelap (gelap), tidak pernah putih atau hitam murni." },
+      { "name": "surface-card", "value": { "light": "#FFFCF8", "dark": "#221A15" }, "usage": "Kartu, bottom nav, sheet, dan chip sholat yang sudah selesai." },
+      { "name": "surface-sunken", "value": { "light": "#F0E4D8", "dark": "#2C221C" }, "usage": "Tag netral (rutin, habit), area input, dan latar sekunder di dalam kartu." },
+      { "name": "line", "value": { "light": "#EADBCB", "dark": "#3A2D25" }, "usage": "Garis tepi kartu 1px, pemisah, dan rel timeline agenda." },
+      { "name": "ink", "value": { "light": "#2A1F19", "dark": "#F2E8E0" }, "usage": "Teks utama di surface-ground, surface-card, dan surface-sunken." },
+      { "name": "ink-muted", "value": { "light": "#6A564A", "dark": "#BBA898" }, "usage": "Teks sekunder: tanggal, meta agenda, label nav tidak aktif. Tetap 4.5:1 di semua permukaan." },
+      { "name": "brand", "value": { "light": "#A3461F", "dark": "#E58A5E" }, "usage": "Terakota senja. Tombol utama, FAB, chip sholat yang sedang berlangsung, kotak centang aktif, garis tepi item agenda yang sedang berjalan." },
+      { "name": "on-brand", "value": { "light": "#FFFFFF", "dark": "#1A110C" }, "usage": "Teks dan ikon di atas brand." },
+      { "name": "brand-soft", "value": { "light": "#F6DECF", "dark": "#3A2419" }, "usage": "Latar tag ibadah, kartu progres tilawah, sorotan lembut." },
+      { "name": "brand-ink", "value": { "light": "#7A3416", "dark": "#F2B394" }, "usage": "Teks di brand-soft, tautan, label nav aktif." },
+      { "name": "teal", "value": { "light": "#2B6661", "dark": "#8CC9BE" }, "usage": "Warna sekunder. Teks tag tugas, badge streak, judul kartu hitung mundur." },
+      { "name": "teal-soft", "value": { "light": "#DCECE9", "dark": "#1E302D" }, "usage": "Latar tag tugas, badge streak, dan kartu hitung mundur." },
+      { "name": "class", "value": { "light": "#3B4F88", "dark": "#B4C0EC" }, "usage": "Teks tag kelas atau mata pelajaran." },
+      { "name": "class-soft", "value": { "light": "#E7E8F2", "dark": "#262A3D" }, "usage": "Latar tag kelas atau mata pelajaran." },
+      { "name": "sky-fajar", "value": { "light": "#F5E3CB", "dark": "#2B1D17" }, "usage": "Latar kartu waktu sholat dari Subuh sampai sebelum Ashar." },
+      { "name": "sky-senja", "value": { "light": "#F1CDB1", "dark": "#3A2419" }, "usage": "Latar kartu waktu sholat dari Ashar sampai Isya. Warna khas sistem ini." },
+      { "name": "sky-ink", "value": { "light": "#3A1E10", "dark": "#F5EAE2" }, "usage": "Teks utama di sky-fajar dan sky-senja." },
+      { "name": "sky-ink-muted", "value": { "light": "#6B412C", "dark": "#C4AE9E" }, "usage": "Teks sekunder, garis horizon, dan titik waktu sholat di kartu langit." },
+      { "name": "sky-surface", "value": { "light": "rgba(255,252,248,0.55)", "dark": "rgba(23,17,14,0.45)" }, "usage": "Panel di dalam kartu langit, misalnya baris Imsak, Terbit, dan Dhuha. Teks di atasnya tetap sky-ink." },
+      { "name": "sky-line", "value": { "light": "rgba(58,30,16,0.18)", "dark": "rgba(245,234,226,0.18)" }, "usage": "Pemisah antar baris sholat dan tepi tombol garis di dalam kartu langit." },
+      { "name": "sun", "value": { "light": "#D98B2B", "dark": "#F1E3B5" }, "usage": "Penanda matahari (terang) atau bulan (gelap) di lengkung waktu sholat. Hanya dekoratif, jangan untuk teks." },
+      { "name": "danger", "value": { "light": "#B3261E", "dark": "#F2B8B5" }, "usage": "Pesan galat dan aksi hapus. Selalu disertai teks, jangan hanya warna." },
+      { "name": "brand-pressed", "value": { "light": "#86391A", "dark": "#F0A27C" }, "usage": "Latar tombol brand saat ditekan atau di-hover. Teks tetap on-brand." },
+      { "name": "focus-ring", "value": { "light": "#2B6661", "dark": "#8CC9BE" }, "usage": "Cincin fokus keyboard 2px dengan jarak 2px dari elemen. Sengaja teal supaya tetap terlihat di atas tombol brand." },
+      { "name": "ink-disabled", "value": { "light": "#A8968A", "dark": "#6E5E53" }, "usage": "Teks, ikon, dan tepi elemen nonaktif. Jangan dipakai untuk teks yang harus dibaca." },
+      { "name": "scrim", "value": { "light": "rgba(42,31,25,0.45)", "dark": "rgba(0,0,0,0.6)" }, "usage": "Lapisan gelap di belakang bottom sheet dan dialog (tambah cepat, pilih kota)." }
+    ]
+  },
+  "type": {
+    "fonts": [],
+    "families": {
+      "sans": "\"Manrope\", system-ui, sans-serif",
+      "arabic": "\"Amiri\", \"Noto Naskh Arabic\", serif"
+    },
+    "groups": [
+      {
+        "name": "Judul",
+        "family": "sans",
+        "styles": [
+          { "name": "display", "fontSize": "40px", "lineHeight": "44px", "fontWeight": 800 },
+          { "name": "heading-xl", "fontSize": "28px", "lineHeight": "32px", "fontWeight": 800 },
+          { "name": "heading-md", "fontSize": "17px", "lineHeight": "24px", "fontWeight": 800 }
+        ]
+      },
+      {
+        "name": "Teks",
+        "family": "sans",
+        "styles": [
+          { "name": "body", "fontSize": "15px", "lineHeight": "22px", "fontWeight": 500 },
+          { "name": "body-strong", "fontSize": "15px", "lineHeight": "22px", "fontWeight": 700 },
+          { "name": "label", "fontSize": "13px", "lineHeight": "18px", "fontWeight": 600 },
+          { "name": "caption", "fontSize": "12px", "lineHeight": "16px", "fontWeight": 600 },
+          { "name": "overline", "fontSize": "12px", "lineHeight": "16px", "fontWeight": 700 }
+        ]
+      },
+      {
+        "name": "Arab",
+        "family": "arabic",
+        "styles": [
+          { "name": "arabic", "fontSize": "20px", "lineHeight": "32px", "fontWeight": 400 }
+        ]
+      }
+    ]
+  },
+  "spacing": {
+    "tokens": [
+      { "name": "space-1", "value": "4px", "usage": "Jarak judul dan meta di dalam satu item." },
+      { "name": "space-2", "value": "8px", "usage": "Jarak antar chip sholat dan antar ikon dengan label." },
+      { "name": "space-3", "value": "12px", "usage": "Jarak antar baris di dalam kartu, celah grid dua kolom." },
+      { "name": "space-4", "value": "16px", "usage": "Padding kartu kecil dan sisi kiri/kanan item agenda." },
+      { "name": "space-5", "value": "20px", "usage": "Gutter halaman di kiri/kanan, padding kartu besar, jarak antar seksi." },
+      { "name": "space-6", "value": "24px", "usage": "Padding atas halaman." },
+      { "name": "space-8", "value": "32px", "usage": "Jarak antar kelompok seksi besar." },
+      { "name": "space-10", "value": "40px", "usage": "Ruang kosong di layar kosong atau onboarding." }
+    ]
+  },
+  "radius": {
+    "tokens": [
+      { "name": "radius-sm", "value": "8px", "usage": "Kotak centang dan tag jenis (ibadah, kelas, tugas)." },
+      { "name": "radius-md", "value": "14px", "usage": "Tombol dan input." },
+      { "name": "radius-lg", "value": "16px", "usage": "Chip sholat dan kartu item agenda." },
+      { "name": "radius-xl", "value": "20px", "usage": "Kartu seksi (prioritas, hitung mundur, tilawah) dan FAB." },
+      { "name": "radius-2xl", "value": "24px", "usage": "Kartu waktu sholat (kartu langit)." },
+      { "name": "radius-full", "value": "999px", "usage": "Pill: badge streak, status Sedang berlangsung, avatar." }
+    ]
+  },
+  "shadow": {
+    "tokens": [
+      { "name": "shadow-fab", "value": "0 10px 24px rgba(0,0,0,0.18)", "usage": "Hanya untuk tombol tambah cepat yang melayang. Kartu memakai garis line, bukan bayangan." }
+    ]
+  }
+}
