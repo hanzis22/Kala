@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Ibadah</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Amiri&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#7A3416}a:hover{color:#A3461F}
+</style>
+</helmet>
+<div style="width: 390px; height: 1880px; box-sizing: border-box; position: relative; overflow: hidden; background: {{t.ground}}; color: {{t.ink}}; font-family: 'Manrope', system-ui, sans-serif">
+
+<div style="display: flex; flex-direction: column; gap: 20px; padding: 24px 20px 120px">
+
+<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 800; letter-spacing: -0.02em">Ibadah</h1>
+<div style="font-size: 13px; line-height: 18px; font-weight: 600; color: {{t.muted}}">Sabtu, 17 Okt · 6 Jumadilawal 1448 H</div>
+</div>
+<button style="display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid {{t.line}}; background: {{t.card}}; color: {{t.ink}}; font-family: inherit; font-size: 13px; font-weight: 700">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"></path><circle cx="12" cy="10" r="2.3"></circle></svg>
+Jakarta
+</button>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 16px; padding: 20px; border-radius: 24px; background: {{t.sky}}; color: {{t.skyInk}}">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: {{t.skyMuted}}">Jadwal sholat hari ini</div>
+<div style="font-size: 12px; font-weight: 600; color: {{t.skyMuted}}">Metode Kemenag</div>
+</div>
+<div style="display: flex; justify-content: space-between; gap: 8px; padding: 10px 14px; border-radius: 14px; background: {{t.skySoft}}; font-size: 13px; font-weight: 600; color: {{t.skyInk}}">
+<span>Imsak 04.10</span>
+<span>Terbit 05.35</span>
+<span>Dhuha 06.00</span>
+</div>
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{prayers}}" as="p" hint-placeholder-count="5">
+<div style="display: flex; align-items: center; gap: 12px; min-height: 60px; border-bottom: 1px solid {{p.sep}}">
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+<div style="font-size: 17px; line-height: 22px; font-weight: 800">{{p.name}}</div>
+<div style="font-size: 12px; line-height: 16px; font-weight: 600; color: {{t.skyMuted}}">{{p.note}}</div>
+</div>
+<div style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">{{p.time}}</div>
+<sc-if value="{{p.isDone}}" hint-placeholder-val="{{ false }}">
+<button aria-label="Sudah sholat" style="width: 44px; height: 44px; border: 0; border-radius: 22px; display: flex; align-items: center; justify-content: center; background: {{t.brand}}; color: {{t.onBrand}}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>
+</button>
+</sc-if>
+<sc-if value="{{p.isNow}}" hint-placeholder-val="{{ false }}">
+<button style="min-height: 44px; padding: 0 14px; border-radius: 14px; border: 2px solid {{t.brand}}; background: {{t.card}}; color: {{t.brandInk}}; font-family: inherit; font-size: 13px; font-weight: 800">Tandai</button>
+</sc-if>
+<sc-if value="{{p.isTodo}}" hint-placeholder-val="{{ false }}">
+<button aria-label="Pengingat aktif" style="width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; border: 1px solid {{t.skyLine}}; background: transparent; color: {{t.skyMuted}}">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg>
+</button>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<button style="min-height: 48px; border-radius: 14px; border: 1px solid {{t.skyLine}}; background: transparent; color: {{t.skyInk}}; font-family: inherit; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+Kirim pengingat ke kalender HP
+</button>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 20px; background: {{t.card}}; border: 1px solid {{t.line}}">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<h2 style="margin: 0; font-size: 17px; line-height: 24px; font-weight: 800">Konsistensi minggu ini</h2>
+<div style="font-size: 13px; font-weight: 700; color: {{t.brandInk}}">{{weekDone}} / {{weekTotal}}</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px" role="img" aria-label="Sholat 5 waktu, 7 hari terakhir">
+<sc-for list="{{week}}" as="d" hint-placeholder-count="7">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; border-radius: 12px; background: {{d.bg}}">
+<div style="font-size: 12px; font-weight: 700; color: {{d.labelColor}}">{{d.label}}</div>
+<sc-for list="{{d.cells}}" as="c" hint-placeholder-count="5">
+<div style="width: 18px; height: 18px; box-sizing: border-box; border-radius: 6px; background: {{c.bg}}; border: 2px solid {{c.bd}}"></div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; gap: 16px; font-size: 12px; font-weight: 600; color: {{t.muted}}">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 4px; background: {{t.brand}}"></span>Sudah</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; box-sizing: border-box; border-radius: 4px; border: 2px solid {{t.brand}}"></span>Sekarang</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; box-sizing: border-box; border-radius: 4px; background: {{t.sunken}}; border: 2px solid {{t.line}}"></span>Terlewat / belum</span>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 20px; background: {{t.brandSoft}}">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: {{t.brandInk}}">Tilawah hari ini</div>
+<div style="font-size: 28px; line-height: 32px; font-weight: 800; letter-spacing: -0.02em">{{tilawah}} / 4 halaman</div>
+</div>
+<button aria-label="Tambah satu halaman" style="flex: none; width: 52px; height: 52px; border: 0; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: {{t.brand}}; color: {{t.onBrand}}">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+</button>
+</div>
+<div style="height: 8px; border-radius: 4px; background: {{t.card}}; overflow: hidden">
+<div style="height: 8px; width: {{tilawahPct}}%; border-radius: 4px; background: {{t.brand}}"></div>
+</div>
+<div style="display: flex; justify-content: space-between; gap: 12px; font-size: 13px; font-weight: 600; color: {{t.ink}}">
+<span>Lanjut: Al-Ma'idah, hal. {{page}}</span>
+<span style="color: {{t.brandInk}}; font-weight: 700">Khatam {{khatamPct}}%</span>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 20px; border-radius: 20px; background: {{t.card}}; border: 1px solid {{t.line}}">
+<div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px">
+<h2 style="margin: 0; font-size: 17px; line-height: 24px; font-weight: 800">Dzikir &amp; doa</h2>
+<div lang="ar" dir="rtl" style="font-family: 'Amiri', serif; font-size: 20px; line-height: 28px; color: {{t.muted}}">سُبْحَانَ اللّٰهِ</div>
+</div>
+<sc-for list="{{dzikir}}" as="z" hint-placeholder-count="3">
+<button style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0; border: 0; border-top: 1px solid {{t.line}}; background: transparent; text-align: left; font-family: inherit; color: {{t.ink}}">
+<span style="flex: none; width: 24px; height: 24px; box-sizing: border-box; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: {{z.boxBg}}; border: 2px solid {{z.boxBd}}">
+<sc-if value="{{z.done}}" hint-placeholder-val="{{ false }}">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.onBrand}}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>
+</sc-if>
+</span>
+<span style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 15px; line-height: 22px; font-weight: 700">{{z.title}}</span>
+<span style="font-size: 12px; line-height: 16px; font-weight: 600; color: {{t.muted}}">{{z.meta}}</span>
+</span>
+<sc-if value="{{z.isNow}}" hint-placeholder-val="{{ false }}">
+<span style="padding: 3px 10px; border-radius: 999px; background: {{t.brand}}; color: {{t.onBrand}}; font-size: 12px; font-weight: 700">Waktunya</span>
+</sc-if>
+</button>
+</sc-for>
+</div>
+
+<div style="display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-radius: 20px; background: {{t.tealSoft}}">
+<div style="flex: none; width: 48px; height: 48px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: {{t.card}}; color: {{t.teal}}">
+<div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em">Sen</div>
+<div style="font-size: 18px; line-height: 20px; font-weight: 800">19</div>
+</div>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+<div style="font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: {{t.teal}}">Puasa sunnah</div>
+<div style="font-size: 15px; line-height: 22px; font-weight: 700">Puasa Senin, lusa</div>
+<div style="font-size: 12px; font-weight: 600; color: {{t.muted}}">Pengingat sahur Senin 03.45</div>
+</div>
+</div>
+
+</div>
+
+<nav aria-label="Navigasi utama" style="position: absolute; left: 0; right: 0; bottom: 0; height: 84px; box-sizing: border-box; padding: 8px 8px 16px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: {{t.card}}; border-top: 1px solid {{t.line}}">
+<button style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; background: transparent; font-family: inherit; font-size: 12px; font-weight: 600; color: {{t.muted}}">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18h18M6.5 18a5.5 5.5 0 0 1 11 0M12 6.5V4M5.8 10.2 4.4 8.8M18.2 10.2l1.4-1.4"></path></svg>
+Hari Ini
+</button>
+<button style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; background: transparent; font-family: inherit; font-size: 12px; font-weight: 600; color: {{t.muted}}">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+Jadwal
+</button>
+<button style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; background: transparent; font-family: inherit; font-size: 12px; font-weight: 600; color: {{t.muted}}">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"></rect><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg>
+Tugas
+</button>
+<button aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; background: transparent; font-family: inherit; font-size: 12px; font-weight: 800; color: {{t.brandInk}}">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4a8 8 0 1 0 5.5 13.8A7 7 0 0 1 14.5 4Z"></path><path d="m17.5 7.5.5 1.4 1.5.1-1.2.9.4 1.4-1.2-.8-1.2.8.4-1.4-1.2-.9 1.5-.1Z"></path></svg>
+Ibadah
+</button>
+<button style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; background: transparent; font-family: inherit; font-size: 12px; font-weight: 600; color: {{t.muted}}">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"></rect><rect x="13" y="4" width="7" height="7" rx="2"></rect><rect x="4" y="13" width="7" height="7" rx="2"></rect><rect x="13" y="13" width="7" height="7" rx="2"></rect></svg>
+Lainnya
+</button>
+</nav>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"phase":{"editor":"enum","options":["maghrib","isya"],"default":"maghrib"},"$preview":{"width":390,"height":1880}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var phase = this.props.phase || 'maghrib';
+    var LIGHT = {
+      ground: '#F7EFE6', card: '#FFFCF8', sunken: '#F0E4D8', line: '#EADBCB', ink: '#2A1F19', muted: '#6A564A',
+      brand: '#A3461F', onBrand: '#FFFFFF', brandSoft: '#F6DECF', brandInk: '#7A3416',
+      teal: '#2B6661', tealSoft: '#DCECE9',
+      sky: '#F1CDB1', skyInk: '#3A1E10', skyMuted: '#6B412C',
+      skySoft: 'rgba(255,252,248,0.55)', skyLine: 'rgba(58,30,16,0.18)'
+    };
+    var DARK = {
+      ground: '#17110E', card: '#221A15', sunken: '#2C221C', line: '#3A2D25', ink: '#F2E8E0', muted: '#BBA898',
+      brand: '#E58A5E', onBrand: '#1A110C', brandSoft: '#3A2419', brandInk: '#F2B394',
+      teal: '#8CC9BE', tealSoft: '#1E302D',
+      sky: '#3A2419', skyInk: '#F5EAE2', skyMuted: '#C4AE9E',
+      skySoft: 'rgba(23,17,14,0.45)', skyLine: 'rgba(245,234,226,0.18)'
+    };
+    var isNight = phase === 'isya';
+    var t = isNight ? DARK : LIGHT;
+    var now = isNight ? 1215 : 1072;
+
+    var P = [
+      { name: 'Subuh', time: '04.20', m: 260 },
+      { name: 'Dzuhur', time: '11.42', m: 702 },
+      { name: 'Ashar', time: '14.58', m: 898 },
+      { name: 'Maghrib', time: '17.48', m: 1068 },
+      { name: 'Isya', time: '18.57', m: 1137 }
+    ];
+    var prayers = P.map(function (p, i) {
+      var isNow = now >= p.m && now - p.m <= 20;
+      var isDone = !isNow && now > p.m;
+      var note = isDone ? (i === 1 || i === 4 ? 'Sudah · berjamaah' : 'Sudah') : (isNow ? 'Sudah masuk 4 menit lalu' : 'Pengingat 10 menit sebelumnya');
+      return { name: p.name, time: p.time, note: note, isNow: isNow, isDone: isDone, isTodo: !isNow && !isDone, sep: i === 4 ? 'transparent' : t.skyLine };
+    });
+
+    var DAYS = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+    var PAST = [
+      [1, 1, 1, 1, 1], [1, 1, 0, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1]
+    ];
+    var todayStates = prayers.map(function (p) { return p.isDone ? 'done' : (p.isNow ? 'now' : 'todo'); });
+    var done = 0, total = 0;
+    var week = DAYS.map(function (label, di) {
+      var isToday = di === 6;
+      var cells = (isToday ? todayStates : PAST[di].map(function (v) { return v ? 'done' : 'miss'; })).map(function (s) {
+        if (s === 'done') done++;
+        total++;
+        return {
+          bg: s === 'done' ? t.brand : (s === 'now' ? 'transparent' : t.sunken),
+          bd: s === 'done' || s === 'now' ? t.brand : t.line
+        };
+      });
+      return { label: label, cells: cells, bg: isToday ? t.brandSoft : 'transparent', labelColor: isToday ? t.brandInk : t.muted };
+    });
+
+    var tilawah = isNight ? 4 : 2;
+    var page = isNight ? 120 : 118;
+
+    var DZ = [
+      { title: 'Dzikir pagi', meta: 'Selesai 05.12', state: 'done' },
+      { title: 'Dzikir petang', meta: 'Setelah Ashar sampai Maghrib', state: isNight ? 'done' : 'now' },
+      { title: 'Doa sebelum tidur', meta: 'Pengingat 21.30', state: 'todo' }
+    ];
+    var dzikir = DZ.map(function (z) {
+      var d = z.state === 'done';
+      return { title: z.title, meta: d && z.title === 'Dzikir petang' ? 'Selesai 17.40' : z.meta, done: d, isNow: z.state === 'now', boxBg: d ? t.brand : 'transparent', boxBd: d || z.state === 'now' ? t.brand : t.muted };
+    });
+
+    return {
+      t: t, prayers: prayers, week: week, weekDone: done, weekTotal: total,
+      tilawah: tilawah, tilawahPct: Math.round(tilawah / 4 * 100), page: page,
+      khatamPct: Math.round(page / 604 * 100), dzikir: dzikir
+    };
+  }
+}
+</script>
+</body>
+</html>

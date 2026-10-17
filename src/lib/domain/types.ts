@@ -45,6 +45,22 @@ export interface Location {
   timeZone: string;
 }
 
+export type IndonesiaTimeZone = 'Asia/Jakarta' | 'Asia/Makassar' | 'Asia/Jayapura';
+
+/** Kota/kabupaten dalam daftar offline (src/lib/data/cities.ts). Bukan entitas di database. */
+export interface City {
+  /** QID Wikidata, misal 'Q10109'. Stabil walau kode Kemendagri berubah. */
+  id: string;
+  /** Kode Kemendagri menurut Wikidata (bisa kode lama untuk Papua); null untuk ibu kota non-kab. */
+  code: string | null;
+  /** 'Surabaya' untuk kota, 'Kab. Bandung' untuk kabupaten. */
+  name: string;
+  province: string;
+  lat: number;
+  lng: number;
+  timeZone: IndonesiaTimeZone;
+}
+
 export interface PrayerSettings {
   /** Fase 1 hanya 'kemenag': Subuh 20°, Isya 18°, Ashar Syafi'i. */
   method: 'kemenag';

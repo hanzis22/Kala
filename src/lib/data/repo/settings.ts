@@ -1,6 +1,6 @@
 import { db } from '$lib/data/db';
 import { defaultSettings } from '$lib/domain/settings';
-import type { IsoDateTime, Settings } from '$lib/domain/types';
+import type { IsoDateTime, Location, Settings } from '$lib/domain/types';
 
 export type SettingsPatch = Partial<Omit<Settings, 'key'>>;
 
@@ -26,4 +26,9 @@ export async function updateSettings(patch: SettingsPatch): Promise<Settings> {
 
 export async function completeOnboarding(now: IsoDateTime): Promise<Settings> {
   return updateSettings({ onboardedAt: now });
+}
+
+/** Menyimpan lokasi. Koordinat GPS harus sudah dibulatkan (`roundCoord`) oleh pemanggil; lihat `locationFromGps`. */
+export async function setLocation(location: Location): Promise<Settings> {
+  return updateSettings({ location });
 }

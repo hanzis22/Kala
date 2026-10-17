@@ -92,7 +92,7 @@ Sebagai pelajar, saya ingin melihat seluruh hari saya dalam satu layar.
 Isi dari atas ke bawah (lihat mockup):
 
 1. Tanggal Masehi + Hijriah, sapaan sesuai jam (pagi < 11.00, siang < 15.00, sore < 18.00, malam sisanya), badge streak (Fase 2; Fase 1 disembunyikan).
-2. **Kartu langit**: sholat berikutnya + hitung mundur (diperbarui tiap menit), lengkung 5 waktu sholat dengan penanda matahari/bulan. Saat sebuah waktu sholat sudah masuk dan belum dicatat (maks. sampai waktu sholat berikutnya), tampilkan tombol "Tandai sudah sholat {nama}".
+2. **Kartu langit**: sholat berikutnya + hitung mundur (diperbarui tiap menit), lengkung 5 waktu sholat dengan penanda matahari/bulan. Saat sebuah sholat sedang dalam waktunya dan belum dicatat, tampilkan tombol "Tandai sudah sholat {nama}". Rentang waktunya mengikuti §F3.5: Subuh sampai Terbit, Isya sampai Subuh esok, sholat lain sampai sholat berikutnya masuk. Antara Terbit dan Dzuhur tidak ada tombol ini; kartu menampilkan hitung mundur ke Dzuhur.
 3. **5 chip sholat** dengan status sudah / sedang / belum. Ketuk chip = toggle catatan sholat.
 4. **3 prioritas hari ini**: maks. 3 baris teks bebas dengan centang, tersimpan di `DayEntry.priorities`.
 5. **Agenda**: hasil `agendaFor(date)` (§6). Default tampil 6 item di sekitar waktu sekarang + tautan "Lihat semua".
@@ -107,15 +107,26 @@ Kriteria:
 
 Sebagai pelajar Muslim, saya ingin tahu waktu sholat yang akurat untuk lokasi saya dan mencatat sholat saya.
 
-1. Waktu sholat dihitung offline dengan library `adhan`:
+1. Waktu sholat dihitung offline dengan library `adhan`, di zona waktu lokasi. Parameter dikalibrasi terhadap jadwal resmi Kemenag (keputusan 17-10-2026, lihat `src/lib/domain/prayer.ts`):
    - Sudut Subuh 20°, Isya 18°, mazhab Syafi'i untuk Ashar.
-   - **Ihtiyat** default +2 menit untuk semua waktu (bisa diubah 0–5 menit di pengaturan).
-   - Koreksi manual per waktu sholat (−10 s.d. +10 menit) di pengaturan.
-   - Imsak = Subuh − 10 menit. Terbit dan Dhuha (Terbit + 15 menit) ditampilkan sebagai info.
-2. **Uji penerimaan wajib sebelum beta:** hasil hitungan untuk Jakarta, Surabaya, dan Makassar pada 3 tanggal berbeda tidak boleh selisih lebih dari 2 menit dari jadwal resmi Kemenag. Simpan sebagai unit test dengan data acuan.
+   - **Ihtiyat** default 2 menit (bisa diubah 0–5 menit di pengaturan). Ditambahkan ke awal waktu sholat dan Dhuha, **dikurangkan** dari Terbit. Terbit adalah batas akhir Subuh, jadi angka yang aman adalah yang lebih awal.
+   - **Pembulatan seperti Kemenag**: awal waktu sholat dan Dhuha dibulatkan ke atas, Terbit dibulatkan ke bawah.
+   - **Dzuhur +1 menit (zawal)**: waktu Dzuhur dimulai setelah seluruh piringan matahari melewati meridian, bukan saat pusatnya tepat di meridian.
+   - **Maghrib +1 dan Terbit −1 menit (koreksi ufuk)**: mengikuti kerendahan horizon yang dipakai Kemenag. Tanpa koreksi ini, Maghrib dan Terbit konsisten meleset sekitar 1 menit di semua kota uji.
+   - **Dhuha**: matahari setinggi **4,5°** di atas ufuk timur, ditambah ihtiyat. Sudut ini dikalibrasi dengan data Jakarta saja, lalu terbukti cocok untuk Surabaya dan Makassar (selisih 0 menit). Dhuha bukan Terbit + 15 menit: data Kemenag menunjukkan jarak Terbit–Dhuha bervariasi 27–29 menit, sesuai sudut matahari tetap.
+   - Koreksi manual per waktu sholat (−10 s.d. +10 menit) di pengaturan, ditambahkan setelah pembulatan.
+   - **Imsak = Subuh yang ditampilkan − 10 menit**, selalu tepat 10 menit. Terbit dan Dhuha ditampilkan sebagai info.
+2. **Uji penerimaan wajib sebelum beta:** hasil hitungan untuk Jakarta, Surabaya, dan Makassar pada 3 tanggal berbeda dibandingkan dengan jadwal resmi Kemenag (unit test `prayer.kemenag.test.ts`, data acuan dan sumbernya di `src/lib/domain/fixtures/kemenag.ts`). Aturannya sama untuk semua kota dan tanggal, dihitung sebagai Kala − Kemenag dalam menit:
+   - **Awal waktu sholat dan Dhuha**: boleh lebih lambat sampai 2 menit, boleh lebih awal **maksimal 1 menit**.
+   - **Imsak dan Terbit**: boleh lebih awal sampai 2 menit, boleh lebih lambat **maksimal 1 menit**.
+   - Alasan: jadwal Kemenag sudah memuat ihtiyat 2 menit, jadi selisih 1 menit ke arah tidak aman tetap berada di dalam margin ihtiyat dan sholat tetap sah. Selisih itu wajar karena pembulatan dan perbedaan titik koordinat kota.
 3. Pencatatan: satu `PrayerLog` per (tanggal, sholat). Opsi "berjamaah" (boolean).
 4. Sholat boleh dicatat sejak waktunya masuk, sampai akhir hari berikutnya (untuk yang lupa mengetuk). Tidak bisa mencatat sholat yang waktunya belum masuk.
-5. Status **terlewat** dihitung (bukan disimpan): waktu sholat berikutnya sudah masuk dan belum ada log. Tampilan netral (`surface-sunken` + `line`), tanpa merah.
+5. Status dihitung (bukan disimpan), dengan rentang waktu menurut fikih:
+   - **Subuh** berlaku sampai **Terbit**. Antara Terbit dan Dzuhur tidak ada sholat berstatus "sedang", dan sholat berikutnya adalah Dzuhur.
+   - **Dzuhur, Ashar, Maghrib** berlaku sampai sholat berikutnya masuk.
+   - **Isya** berlaku sampai Subuh esok.
+   - **Terlewat** = rentangnya sudah lewat dan belum ada log (Subuh terlewat sejak Terbit). Tampilan netral (`surface-sunken` + `line`), tanpa merah. Sholat terlewat masih bisa dicatat sesuai butir 4.
 6. Grid konsistensi 7 hari terakhir (7 × 5) di tab Ibadah.
 7. Ganti lokasi hanya memengaruhi hitungan ke depan; log lama tidak berubah.
 
@@ -175,7 +186,7 @@ Sisa teks setelah token dikenali menjadi judul. Parser adalah fungsi murni `pars
 1. Nama panggilan.
 2. Lokasi (GPS / pilih kota), ihtiyat, koreksi per waktu sholat.
 3. **Penyesuaian tanggal Hijriah** −2 s.d. +2 hari. Alasan: kalender Umm al-Qura bawaan browser bisa berbeda sehari dengan keputusan Kemenag.
-4. Tema: Ikuti sistem (default) / Terang / Gelap / Ikuti waktu sholat (gelap otomatis dari Isya sampai Subuh).
+4. Tema: Ikuti sistem (default) / Terang / Gelap / Ikuti waktu sholat (gelap otomatis dari Isya sampai Subuh di lokasi tersimpan; di luar itu mengikuti tema sistem; tanpa lokasi = ikuti sistem).
 5. Hari pertama minggu (Senin default), tampilkan Minggu di timetable.
 6. Data: **Ekspor** (file JSON), **Impor** (pilih: gabungkan atau ganti semua), **Hapus semua data** (konfirmasi dengan mengetik "HAPUS").
 7. Tentang: versi app, kebijakan privasi, kirim masukan (tautan formulir).

@@ -44,7 +44,17 @@ describe('resolveTheme', () => {
     expect(resolveTheme('system')).toBeNull();
   });
 
-  it('mode waktu sholat sementara sama dengan sistem (sampai F3)', () => {
+  it('mode waktu sholat: gelap saat malam (Isya–Subuh), selain itu ikut sistem', () => {
+    expect(resolveTheme('prayer', { night: true })).toBe('dark');
+    expect(resolveTheme('prayer', { night: false })).toBeNull();
+  });
+
+  it('mode waktu sholat tanpa lokasi (malam tidak diketahui) = ikut sistem', () => {
     expect(resolveTheme('prayer')).toBeNull();
+  });
+
+  it('pilihan terang/gelap/sistem tidak terpengaruh malam', () => {
+    expect(resolveTheme('light', { night: true })).toBe('light');
+    expect(resolveTheme('system', { night: true })).toBeNull();
   });
 });

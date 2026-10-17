@@ -15,3 +15,7 @@ pnpm-workspace.yaml
 # Dokumen (dirawat manual, tabel Markdown tidak diformat ulang)
 *.md
 /docs
+
+# File hasil generator (scripts/fetch-*.mjs); jangan diformat ulang
+/src/lib/data/cities.ts
+/src/lib/domain/fixtures/kemenag.ts

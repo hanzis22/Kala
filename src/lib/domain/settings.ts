@@ -30,16 +30,20 @@ export function defaultSettings(): Settings {
  * Nilai atribut `data-theme` di <html>. `null` = tanpa atribut, CSS mengikuti
  * `prefers-color-scheme` (lihat app.css).
  *
- * Mode 'prayer' (gelap dari Isya sampai Subuh) butuh jadwal sholat dari F3.
- * Sampai F3 selesai, mode ini berperilaku seperti 'system'.
+ * Mode 'prayer' (PRD §F8.4): gelap dari Isya sampai Subuh (`night`, dihitung dari jadwal sholat
+ * lokasi), selain itu mengikuti sistem. Tanpa lokasi (`night` tidak diketahui) = mengikuti sistem.
  */
-export function resolveTheme(preference: ThemePreference): 'light' | 'dark' | null {
+export function resolveTheme(
+  preference: ThemePreference,
+  context: { night?: boolean } = {}
+): 'light' | 'dark' | null {
   switch (preference) {
     case 'light':
     case 'dark':
       return preference;
     case 'system':
-    case 'prayer':
       return null;
+    case 'prayer':
+      return context.night ? 'dark' : null;
   }
 }
