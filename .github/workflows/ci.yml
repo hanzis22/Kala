@@ -11,14 +11,17 @@ concurrency:
 permissions:
   contents: read
 
+# runs-on dipin ke ubuntu-24.04 SEMENTARA, sampai CI diuji di Ubuntu 26
+# (label ubuntu-latest pindah ke Ubuntu 26 mulai 19-10-2026).
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
 
       # Versi pnpm diambil dari field packageManager di package.json.
-      - uses: pnpm/action-setup@v4
+      # pnpm/action-setup v5+ berjalan di Node 24 (v4 masih Node 20, deprecated).
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v5
         with:
@@ -32,11 +35,11 @@ jobs:
       - run: pnpm build
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v5
         with:
