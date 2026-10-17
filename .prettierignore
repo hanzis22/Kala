@@ -1,0 +1,17 @@
+# Package managers
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
+# Output
+/build
+/.svelte-kit
+/test-results
+/playwright-report
+
+# Aset biner/hasil generator
+/static/*.png
+/static/favicon.ico
+
+# Dokumen (dirawat manual, tabel Markdown tidak diformat ulang)
+*.md
+/docs
