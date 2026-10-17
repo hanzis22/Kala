@@ -1,0 +1,15 @@
+// Deploy Kala ke Cloudflare Workers sebagai static assets saja: tanpa "main", tanpa Worker script,
+// tanpa adapter Cloudflare. Kala tetap situs statis hasil adapter-static (lihat vite.config.ts).
+// Dijalankan oleh Cloudflare Workers Builds: `pnpm build` lalu `npx wrangler deploy`.
+{
+  "name": "kala",
+  "compatibility_date": "2026-10-17",
+  "assets": {
+    "directory": "./build",
+    // URL tak dikenal → 404.html terdekat dengan status 404. Sama dengan fallback adapter-static
+    // dan service worker (FALLBACK = '404.html'); 404.html adalah shell SPA.
+    "not_found_handling": "404-page",
+    // /jadwal melayani jadwal.html tanpa redirect; /jadwal.html dan /jadwal/ diarahkan ke /jadwal.
+    "html_handling": "auto-trailing-slash"
+  }
+}

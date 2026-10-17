@@ -12,8 +12,13 @@ import { assets, immutable, prerendered } from '$app/manifest';
 import { version } from '$app/env';
 
 const CACHE = `kala-${version}`;
-/** Harus sama dengan `FALLBACK` di vite.config.ts. */
-const FALLBACK = '404.html';
+/**
+ * URL kanonis untuk 404.html (`FALLBACK` di vite.config.ts). Cloudflare Workers dengan
+ * `html_handling: auto-trailing-slash` mengalihkan /404.html → /404 (307), dan respons hasil
+ * redirect tidak boleh dipakai untuk navigasi. Jadi precache memakai /404, yang langsung
+ * melayani 404.html dengan status 200.
+ */
+const FALLBACK = '404';
 
 /** Path dari manifest relatif ke base path; jadikan URL absolut di scope SW. */
 const toUrl = (path: string) => new URL(path.replace(/^\//, ''), self.registration.scope).href;

@@ -1,5 +1,6 @@
-// Server statis untuk build/ yang meniru Cloudflare Pages, dipakai test e2e:
-// - URL bersih: /jadwal → jadwal.html, / → index.html
+// Server statis untuk build/ yang meniru Cloudflare Workers, dipakai test e2e:
+// - URL bersih: /jadwal → jadwal.html, / → index.html; /jadwal.html → 307 ke /jadwal
+//   (html_handling auto-trailing-slash di wrangler.jsonc)
 // - URL yang tidak ada → 404.html dengan status 404
 // - header dari build/_headers (pola path + wildcard *), termasuk CSP
 // Tanpa dependensi. Pemakaian: node scripts/serve-build.mjs [port]
@@ -65,6 +66,15 @@ function resolveFile(pathname) {
 
 createServer((req, res) => {
   const { pathname } = new URL(req.url ?? '/', 'http://localhost');
+
+  // html_handling auto-trailing-slash: /x.html dan /x/index.html dialihkan (307) ke URL bersih.
+  const cleanUrl = pathname.replace(/(^|\/)index\.html$/, '$1').replace(/\.html$/, '');
+  if (cleanUrl !== pathname && isFile(join(ROOT, normalize(decodeURIComponent(pathname))))) {
+    res.writeHead(307, { Location: cleanUrl || '/' });
+    res.end();
+    return;
+  }
+
   // _headers dibaca Cloudflare, tidak disajikan.
   const file = pathname === '/_headers' ? null : resolveFile(pathname);
   const target = file ?? join(ROOT, '404.html');

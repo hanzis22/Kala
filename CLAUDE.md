@@ -20,7 +20,7 @@ Jika permintaan bertentangan dengan PRD, tanyakan dulu. Jangan diam-diam mengiku
 
 ## Stack
 
-SvelteKit + Svelte 5 (runes) dengan `adapter-static` · TypeScript strict · Tailwind CSS v4 · shadcn-svelte (Bits UI) · Dexie (IndexedDB) + `liveQuery` · date-fns · rrule · adhan · ulidx · Valibot · service worker bawaan SvelteKit (`src/service-worker/`, lihat PRD §F9.1) · Vitest · Playwright · pnpm · Cloudflare Pages.
+SvelteKit + Svelte 5 (runes) dengan `adapter-static` · TypeScript strict · Tailwind CSS v4 · shadcn-svelte (Bits UI) · Dexie (IndexedDB) + `liveQuery` · date-fns · rrule · adhan · ulidx · Valibot · service worker bawaan SvelteKit (`src/service-worker/`, lihat PRD §F9.1) · Vitest · Playwright · pnpm · Cloudflare Workers (static assets, lihat `wrangler.jsonc`).
 
 Font di-self-host lewat `@fontsource-variable/manrope` dan `@fontsource/amiri`. Jangan memuat font dari Google Fonts CDN (app harus offline dan privat).
 
@@ -36,7 +36,10 @@ pnpm lint           # ESLint + Prettier
 pnpm test           # Vitest (unit)
 pnpm test:e2e       # Playwright
 pnpm build && pnpm preview
+pnpm build && npx wrangler dev   # uji lokal persis seperti di Cloudflare (header _headers, 404.html)
 ```
+
+Deploy: Cloudflare Workers Builds menjalankan `pnpm build` lalu `npx wrangler deploy` dengan `wrangler.jsonc` (static assets saja). Jangan memasang `wrangler` sebagai dependensi, jangan menambah adapter Cloudflare, dan jangan menambah `main`/Worker script: Kala tetap statis.
 
 Sebelum menyatakan tugas selesai, jalankan `pnpm check && pnpm lint && pnpm test`. Semuanya harus lolos.
 
