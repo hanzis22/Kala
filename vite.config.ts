@@ -3,7 +3,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 
-/** Harus sama dengan `FALLBACK` di src/service-worker/index.ts. */
+/** Harus cocok dengan `FALLBACK` di src/service-worker/index.ts (di sana sebagai URL kanonis /404). */
 const FALLBACK = '404.html';
 
 export default defineConfig({
@@ -15,7 +15,7 @@ export default defineConfig({
         runes: ({ filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
       },
       // Semua route diprerender sebagai shell (ssr = false). Route yang tidak dikenal
-      // dilayani Cloudflare Pages dengan 404.html, yang juga shell SPA.
+      // dilayani Cloudflare Workers dengan 404.html, yang juga shell SPA.
       adapter: adapter({ fallback: FALLBACK }),
       // Kit 3 menghapus $lib (diganti #lib). Starter pack dan shadcn-svelte memakai $lib.
       alias: { $lib: 'src/lib' },

@@ -23,7 +23,7 @@ export default defineConfig({
     }
   ],
   webServer: {
-    // Uji build produksi lewat server yang meniru Cloudflare Pages (URL bersih, 404.html,
+    // Uji build produksi lewat server yang meniru Cloudflare Workers (URL bersih, 404.html,
     // header dari build/_headers). Service worker hanya aktif di build, bukan di dev.
     command: `pnpm build && node scripts/serve-build.mjs ${PORT}`,
     port: PORT,

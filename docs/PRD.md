@@ -262,6 +262,7 @@ Catatan desain:
 | Offline | Semua fitur Fase 1 berjalan tanpa jaringan |
 | Bahasa | Bahasa Indonesia, sapaan "kamu", teks UI terpusat agar siap i18n (Paraglide) di Fase 3 |
 | Keamanan | Tidak ada `{@html}` dengan data user; CSP ketat lewat `_headers` |
+| Hosting | Cloudflare Workers, **static assets saja** (bukan Pages, tanpa Worker script, tanpa adapter Cloudflare/SSR). Konfigurasi di `wrangler.jsonc`: `assets.directory = ./build`, `not_found_handling = 404-page`, `html_handling = auto-trailing-slash`. Deploy lewat Cloudflare Workers Builds: `pnpm build` lalu `npx wrangler deploy`. `_headers` berlaku dengan format yang sama seperti di Pages |
 
 ## 9. Ukuran keberhasilan beta
 

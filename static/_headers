@@ -1,4 +1,4 @@
-# Header keamanan untuk Cloudflare Pages. Lihat CLAUDE.md "Keamanan dan privasi".
+# Header keamanan untuk Cloudflare Workers static assets (format sama dengan Pages). Lihat CLAUDE.md "Keamanan dan privasi".
 # Placeholder hash di script-src diganti saat build oleh scripts/csp-hashes.mjs dengan hash
 # sha256 skrip inline (boot SvelteKit + skrip tema di app.html). Build gagal jika tersisa.
 # Satu-satunya pihak ketiga yang diizinkan: Cloudflare Web Analytics (tanpa cookie).

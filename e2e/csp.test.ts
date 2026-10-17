@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { completeOnboarding } from './helpers';
 
-// Server uji (scripts/serve-build.mjs) mengirim header dari build/_headers, sama seperti Cloudflare Pages.
+// Server uji (scripts/serve-build.mjs) mengirim header dari build/_headers, sama seperti Cloudflare Workers.
 test('CSP dari _headers aktif dan tidak memblokir app', async ({ page }) => {
   const response = await page.goto('/');
   const csp = response?.headers()['content-security-policy'] ?? '';
