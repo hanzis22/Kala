@@ -67,3 +67,34 @@ export function msUntilNextMidnight(now: Date): number {
   const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
   return next.getTime() - now.getTime();
 }
+
+/** Nomor hari sejak 1970-01-01 untuk sebuah LocalDate. Untuk membandingkan/menghitung selisih tanggal. */
+export function dayNumber(date: LocalDate): number {
+  if (!isValidLocalDate(date)) throw new RangeError(`LocalDate tidak valid: ${date}`);
+  const [y, m, d] = date.split('-').map(Number);
+  return Date.UTC(y, m - 1, d) / 86_400_000;
+}
+
+const zonedFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * Tanggal dan menit sejak tengah malam dari sebuah instan, di zona waktu IANA tertentu
+ * (misal zona lokasi untuk hitungan sholat), tidak bergantung zona perangkat.
+ */
+export function toZoned(instant: Date, timeZone: string): { date: LocalDate; minutes: Minutes } {
+  let fmt = zonedFormatters.get(timeZone);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23'
+    });
+    zonedFormatters.set(timeZone, fmt);
+  }
+  const p = Object.fromEntries(fmt.formatToParts(instant).map((x) => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, minutes: Number(p.hour) * 60 + Number(p.minute) };
+}

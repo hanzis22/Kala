@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addDays,
+  dayNumber,
   fromMinutes,
   isValidLocalDate,
   isValidLocalTime,
@@ -9,7 +10,8 @@ import {
   parseLocalDate,
   toLocalDate,
   toLocalTime,
-  toMinutes
+  toMinutes,
+  toZoned
 } from './dates';
 
 describe('isValidLocalDate', () => {
@@ -117,5 +119,32 @@ describe('msUntilNextMidnight', () => {
 
   it('melewati akhir tahun', () => {
     expect(msUntilNextMidnight(new Date(2026, 11, 31, 23, 0, 0))).toBe(3_600_000);
+  });
+});
+
+describe('dayNumber', () => {
+  it('berurutan dan tahan pergantian bulan/tahun', () => {
+    expect(dayNumber('1970-01-01')).toBe(0);
+    expect(dayNumber('2026-10-18') - dayNumber('2026-10-17')).toBe(1);
+    expect(dayNumber('2027-01-01') - dayNumber('2026-12-31')).toBe(1);
+    expect(dayNumber('2024-03-01') - dayNumber('2024-02-28')).toBe(2);
+  });
+});
+
+describe('toZoned', () => {
+  // 2026-10-17T21:30:00Z = 18 Okt 04.30 WIB = 05.30 WITA = 06.30 WIT
+  const instant = new Date('2026-10-17T21:30:00Z');
+
+  it('memakai zona yang diminta, bukan zona perangkat', () => {
+    expect(toZoned(instant, 'Asia/Jakarta')).toEqual({ date: '2026-10-18', minutes: 4 * 60 + 30 });
+    expect(toZoned(instant, 'Asia/Makassar')).toEqual({ date: '2026-10-18', minutes: 5 * 60 + 30 });
+    expect(toZoned(instant, 'Asia/Jayapura')).toEqual({ date: '2026-10-18', minutes: 6 * 60 + 30 });
+  });
+
+  it('tengah malam = menit 0', () => {
+    expect(toZoned(new Date('2026-10-17T17:00:00Z'), 'Asia/Jakarta')).toEqual({
+      date: '2026-10-18',
+      minutes: 0
+    });
   });
 });
