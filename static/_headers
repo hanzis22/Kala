@@ -10,7 +10,7 @@
   Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=(), bluetooth=(), browsing-topics=()
   Cross-Origin-Opener-Policy: same-origin
 
-/sw.js
+/service-worker.js
   Cache-Control: no-cache
 
 /_app/immutable/*

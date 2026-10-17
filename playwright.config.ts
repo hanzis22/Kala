@@ -8,7 +8,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'list',
+  // Di CI: anotasi GitHub + laporan HTML (diunggah sebagai artifact jika gagal).
+  reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: `http://localhost:${PORT}`,
     locale: 'id-ID',

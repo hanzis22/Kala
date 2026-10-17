@@ -286,3 +286,4 @@ Event analytics (Cloudflare Web Analytics, tanpa data pribadi): `onboarding_done
 | 3 | Hari Hijriah berganti saat Maghrib? | Tidak (lihat §7.6) |
 | 4 | Pengingat sholat: cukup ekspor `.ics` di Fase 2, atau perlu web push (butuh server)? | `.ics` dulu |
 | 5 | Sumber teks dzikir & doa untuk Fase 2, siapa yang memverifikasi | Perlu ditentukan sebelum Fase 2 |
+| 6 | Utang teknis: migrasi alias `$lib` ke `#lib` (SvelteKit 3). `$lib` saat ini dipertahankan lewat opsi `alias` yang deprecated (lihat `vite.config.ts`) | Tetap `$lib` sampai shadcn-svelte mendukung `#lib`; migrasi sebelum SvelteKit menghapus `alias` |
