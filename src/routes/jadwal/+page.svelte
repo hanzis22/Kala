@@ -120,7 +120,7 @@
     aria-label={t.addSession}
     onclick={addSession}
   >
-    <Plus size={26} strokeWidth={2.4} aria-hidden="true" />
+    <Plus size={24} strokeWidth={2} aria-hidden="true" />
   </button>
 </div>
 

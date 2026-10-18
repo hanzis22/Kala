@@ -171,7 +171,7 @@ export const copy = {
     name: 'Nama mapel',
     namePlaceholder: 'Misal: Matematika',
     abbr: 'Singkatan',
-    abbrHint: 'Tampil di jadwal mingguan, misal MTK.',
+    abbrHint: 'Tampil di jadwal mingguan. Paling pas 2–4 huruf, misal MTK.',
     teacher: 'Guru',
     room: 'Ruang',
     optional: 'opsional',
