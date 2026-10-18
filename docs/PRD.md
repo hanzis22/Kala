@@ -150,6 +150,7 @@ Keputusan implementasi F4 (disetujui 19 Okt 2026):
 - Mengubah sesi = mengubah seluruh seri; pilihan "hanya tanggal ini / seterusnya" ada di F5.
 - `Subject.abbr` (19 Okt 2026): di-trim, kosong disimpan sebagai `null`. Tidak di-index, jadi tidak ada versi Dexie baru; record lama tanpa field ini dinormalisasi menjadi `null` saat dibaca di repo. Tanpa singkatan, grid memakai nama per kata yang dipotong.
 - Sesi bentrok di grid Minggu (19 Okt 2026, menggantikan lane berdampingan yang hanya ±21 px di 360 px): sesi yang jamnya bertumpuk (langsung atau berantai) digabung jadi satu blok selebar kolom, dari mulai paling awal sampai selesai paling akhir, berbingkai tebal, berisi lencana jumlah sesi, singkatan/kata pertama tiap mapel, dan jam mulai jika muat; label aksesibilitasnya "N sesi bentrok, {hari} {jam}: {mapel}". Mengetuknya membuka sheet "Pilih sesi" (nama lengkap + jam, baris ≥ 44 px), lalu sheet Ubah sesi. Sesi yang hanya bersentuhan (08.30 selesai, 08.30 mulai) tidak bentrok.
+- Halaman `/jadwal` punya ruang kosong setinggi FAB di bawah grid agar jam terakhir bisa digulir ke atas FAB.
 - Sakelar "Tampilkan Minggu di jadwal" (F8.5) sementara ada di `/lainnya`, pindah ke `/lainnya/pengaturan` saat F8 dikerjakan.
 
 ### F5. Rutin berulang

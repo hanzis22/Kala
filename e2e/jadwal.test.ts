@@ -205,3 +205,28 @@ test('sesi bentrok tampil sebagai satu blok selebar kolom dan bisa dipilih', asy
   await expect(edit.getByLabel('Jam mulai')).toHaveValue('10:30');
   await expect(edit.getByLabel('Durasi (menit)')).toHaveValue('45');
 });
+
+test('jam terakhir grid bisa digulir ke atas tombol tambah', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.clock.setFixedTime(NOW);
+  await completeOnboarding(page);
+  await page.goto('/jadwal/mapel');
+  await page.getByRole('button', { name: 'Tambah mapel' }).click();
+  await page.getByRole('dialog', { name: 'Tambah mapel' }).getByLabel('Nama mapel').fill('Seni Budaya');
+  await page.getByRole('dialog', { name: 'Tambah mapel' }).getByRole('button', { name: 'Simpan' }).click();
+  await page.goto('/jadwal');
+  await page.getByRole('button', { name: 'Tambah sesi kelas' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Tambah sesi kelas' });
+  await sheet.getByRole('button', { name: 'Sabtu' }).click();
+  await sheet.getByLabel('Jam mulai').fill('16:30');
+  await sheet.getByLabel('Durasi (menit)').fill('90');
+  await sheet.getByRole('button', { name: 'Simpan' }).click();
+  await expect(sheet).toBeHidden();
+
+  // Gulir sampai paling bawah: blok terakhir (Sabtu, kolom paling kanan) tidak tertutup FAB.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const block = await page.getByRole('button', { name: /^Seni Budaya, Sabtu 16\.30–18\.00/ }).boundingBox();
+  const fab = await page.getByRole('button', { name: 'Tambah sesi kelas' }).boundingBox();
+  expect(block && fab).toBeTruthy();
+  expect(block!.y + block!.height).toBeLessThanOrEqual(fab!.y);
+});

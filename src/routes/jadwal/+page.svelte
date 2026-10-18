@@ -136,6 +136,8 @@
       />
     </section>
   {/if}
+  <!-- Ruang setinggi FAB (60 px + jarak) agar jam terakhir grid bisa digulir ke atas FAB. -->
+  <div class="h-[76px] shrink-0" aria-hidden="true"></div>
 </div>
 
 <div
