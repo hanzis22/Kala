@@ -8,17 +8,35 @@ const existing = [
 
 describe('normalizeSubjectInput', () => {
   it('trim, rapikan spasi, kosong → null', () => {
-    expect(normalizeSubjectInput({ name: '  Bahasa   Indonesia ', teacher: '  ', room: ' 7B ' })).toEqual({
+    expect(
+      normalizeSubjectInput({ name: '  Bahasa   Indonesia ', abbr: null, teacher: '  ', room: ' 7B ' })
+    ).toEqual({
       name: 'Bahasa Indonesia',
+      abbr: null,
       teacher: null,
       room: '7B'
     });
   });
+
+  it('singkatan: kosong → null, di-trim', () => {
+    const abbr = (value: string | null) =>
+      normalizeSubjectInput({ name: 'Matematika', abbr: value, teacher: null, room: null }).abbr;
+    expect(abbr(null)).toBeNull();
+    expect(abbr('')).toBeNull();
+    expect(abbr('   ')).toBeNull();
+    expect(abbr('  MTK ')).toBe('MTK');
+    expect(abbr('B  Ind')).toBe('B Ind');
+  });
 });
 
 describe('validateSubjectInput', () => {
-  const input = (name: string, extra: Partial<{ teacher: string; room: string }> = {}) =>
-    normalizeSubjectInput({ name, teacher: extra.teacher ?? null, room: extra.room ?? null });
+  const input = (name: string, extra: Partial<{ abbr: string; teacher: string; room: string }> = {}) =>
+    normalizeSubjectInput({
+      name,
+      abbr: extra.abbr ?? null,
+      teacher: extra.teacher ?? null,
+      room: extra.room ?? null
+    });
 
   it('nama wajib', () => {
     expect(validateSubjectInput(input('   '), existing)).toBe('name-required');
@@ -34,6 +52,17 @@ describe('validateSubjectInput', () => {
     expect(validateSubjectInput(input('Kimia', { teacher: 't'.repeat(41) }), existing)).toBe(
       'detail-too-long'
     );
+  });
+
+  it('singkatan maksimal 6 karakter setelah trim', () => {
+    expect(validateSubjectInput(input('Kimia', { abbr: 'KIMIA1' }), existing)).toBeNull();
+    expect(validateSubjectInput(input('Kimia', { abbr: '  KIMIA1  ' }), existing)).toBeNull();
+    expect(validateSubjectInput(input('Kimia', { abbr: 'KIMIA12' }), existing)).toBe('abbr-too-long');
+  });
+
+  it('singkatan boleh kembar antar mapel', () => {
+    const withAbbr = [{ id: 'c', name: 'Bahasa Indonesia', abbr: 'BI', deletedAt: null }];
+    expect(validateSubjectInput(input('Bahasa Inggris', { abbr: 'BI' }), withAbbr)).toBeNull();
   });
 
   it('nama duplikat ditolak tanpa membedakan huruf besar-kecil', () => {

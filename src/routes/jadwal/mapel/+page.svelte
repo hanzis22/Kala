@@ -50,7 +50,7 @@
   }
 
   const meta = (s: Subject) =>
-    [s.teacher, s.room, t.sessions(sessionsBySubject[s.id] ?? 0)].filter(Boolean).join(' · ');
+    [s.abbr, s.teacher, s.room, t.sessions(sessionsBySubject[s.id] ?? 0)].filter(Boolean).join(' · ');
 </script>
 
 <svelte:head><title>{copy.pages.subjects.title} · {copy.appName}</title></svelte:head>

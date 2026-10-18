@@ -21,7 +21,7 @@ const session = (patch: Partial<Parameters<typeof createClassRoutine>[0]> = {}) 
 
 beforeEach(async () => {
   await Promise.all([db.subjects.clear(), db.routines.clear()]);
-  mtk = await createSubject({ name: 'Matematika', teacher: null, room: '7B' }, T1);
+  mtk = await createSubject({ name: 'Matematika', abbr: null, teacher: null, room: '7B' }, T1);
 });
 
 describe('createClassRoutine', () => {

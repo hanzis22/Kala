@@ -28,10 +28,13 @@ test('mapel → sesi Senin & Rabu → tampil di grid → tetap ada offline → h
   await page.getByRole('button', { name: 'Tambah mapel' }).click();
   const subjectSheet = page.getByRole('dialog', { name: 'Tambah mapel' });
   await subjectSheet.getByLabel('Nama mapel').fill('Matematika');
+  await subjectSheet.getByLabel(/^Singkatan/).fill('MTK');
   await subjectSheet.getByLabel(/^Ruang/).fill('7B');
   await subjectSheet.getByRole('button', { name: 'Simpan' }).click();
   await expect(subjectSheet).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Ubah Matematika' })).toContainText('7B · Belum ada sesi');
+  await expect(page.getByRole('button', { name: 'Ubah Matematika' })).toContainText(
+    'MTK · 7B · Belum ada sesi'
+  );
 
   // Tambah sesi Senin & Rabu 07.00–08.30.
   await page.getByRole('link', { name: 'Kembali ke Jadwal' }).click();
@@ -56,6 +59,8 @@ test('mapel → sesi Senin & Rabu → tampil di grid → tetap ada offline → h
   await expect(page.locator('[data-routine]')).toHaveCount(2);
   await expect(block(page, 'Senin')).toHaveAttribute('data-date', '2026-10-19');
   await expect(block(page, 'Rabu')).toHaveAttribute('data-date', '2026-10-21');
+  // Grid menampilkan singkatan; nama lengkap tetap di aria-label (lihat `block`).
+  await expect(block(page, 'Senin')).toHaveText(/^\s*MTK\s*07\.00\s*$/);
 
   // Offline + reload: data tetap ada.
   await page.evaluate(async () => {

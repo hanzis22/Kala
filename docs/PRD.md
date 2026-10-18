@@ -134,7 +134,7 @@ Sebagai pelajar Muslim, saya ingin tahu waktu sholat yang akurat untuk lokasi sa
 
 Sebagai pelajar, saya ingin memasukkan jadwal pelajaran sekali dan melihatnya otomatis setiap hari.
 
-1. `Subject`: nama (wajib), guru, ruang (opsional).
+1. `Subject`: nama (wajib), singkatan, guru, ruang (opsional). Singkatan maksimal 6 karakter (misal "MTK"), boleh kembar antar mapel, dan tampil di grid Minggu menggantikan nama yang terpotong di kolom ±45 px. Nama lengkap tetap dipakai di label aksesibilitas, daftar mapel, dan form.
 2. Sesi kelas disimpan sebagai `Routine` dengan `kind: 'class'` dan `subjectId`. Pengulangan mingguan pada hari tertentu (`FREQ=WEEKLY;BYDAY=MO,WE`).
 3. Tampilan **Minggu** di `/jadwal`: grid Senin–Sabtu (Minggu bisa ditampilkan lewat pengaturan), jam 06.00–18.00, sesi diwarnai token `class`.
 4. Menghapus mapel: tanya dulu, lalu soft-delete mapel beserta rutin kelasnya. Tugas lama tetap ada dengan label mapel "(dihapus)".
@@ -148,6 +148,7 @@ Keputusan implementasi F4 (disetujui 19 Okt 2026):
 - Ruang sesi terisi otomatis dari ruang mapel dan bisa diubah per sesi; disimpan di `Routine.location`.
 - Nama mapel unik di antara mapel aktif tanpa membedakan huruf besar-kecil (agar tambah cepat F7 tidak ambigu), maksimal 60 karakter; guru dan ruang maksimal 40 karakter.
 - Mengubah sesi = mengubah seluruh seri; pilihan "hanya tanggal ini / seterusnya" ada di F5.
+- `Subject.abbr` (19 Okt 2026): di-trim, kosong disimpan sebagai `null`. Tidak di-index, jadi tidak ada versi Dexie baru; record lama tanpa field ini dinormalisasi menjadi `null` saat dibaca di repo. Tanpa singkatan, grid memakai nama per kata yang dipotong.
 - Sakelar "Tampilkan Minggu di jadwal" (F8.5) sementara ada di `/lainnya`, pindah ke `/lainnya/pengaturan` saat F8 dikerjakan.
 
 ### F5. Rutin berulang
@@ -228,7 +229,7 @@ Definisi lengkap: `src/lib/domain/types.ts`. Skema database: `src/lib/data/db.ts
 | Entitas | Kunci | Isi utama | Fase |
 |---|---|---|---|
 | `Settings` | `key = 'app'` (singleton) | nama, lokasi, parameter sholat, offset Hijriah, tema, onboardedAt, schemaVersion | 1 |
-| `Subject` | `id` | nama, guru, ruang | 1 |
+| `Subject` | `id` | nama, singkatan (`abbr`, opsional), guru, ruang | 1 |
 | `Routine` | `id` | kind (`class` / `routine` / `event`), judul, subjectId, startTime, durationMin, rrule, dtstart, until, exdates, overrides | 1 |
 | `Task` | `id` | judul, jenis, subjectId, dueDate/dueTime, scheduledDate/startTime/durationMin, prioritas, quadrant, status | 1 |
 | `Completion` | `id = sourceId:date` | penanda selesai untuk satu kejadian rutin/kelas di satu tanggal | 1 |

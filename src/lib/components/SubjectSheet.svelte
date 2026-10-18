@@ -6,6 +6,7 @@
   import { ValidationError } from '$lib/data/repo/errors';
   import { createSubject, updateSubject } from '$lib/data/repo/subjects';
   import {
+    MAX_SUBJECT_ABBR,
     MAX_SUBJECT_DETAIL,
     MAX_SUBJECT_NAME,
     normalizeSubjectInput,
@@ -28,6 +29,7 @@
   const t = copy.subjects;
 
   let name = $state('');
+  let abbr = $state('');
   let teacher = $state('');
   let room = $state('');
   let error = $state<string | null>(null);
@@ -37,6 +39,7 @@
   $effect(() => {
     if (!open) return;
     name = subject?.name ?? '';
+    abbr = subject?.abbr ?? '';
     teacher = subject?.teacher ?? '';
     room = subject?.room ?? '';
     error = null;
@@ -45,7 +48,7 @@
   async function save(event: SubmitEvent) {
     event.preventDefault();
     if (saving) return;
-    const input = normalizeSubjectInput({ name, teacher, room });
+    const input = normalizeSubjectInput({ name, abbr, teacher, room });
     const code = validateSubjectInput(input, schedule.subjects, subject?.id ?? null);
     if (code) {
       error = t.errors[code];
@@ -94,6 +97,19 @@
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={error ? 'subject-error' : undefined}
         />
+      </label>
+      <label class="flex flex-col gap-1.5">
+        <span class="text-label font-bold text-ink"
+          >{t.abbr} <span class="font-semibold text-muted">· {t.optional}</span></span
+        >
+        <input
+          class={inputClass}
+          bind:value={abbr}
+          maxlength={MAX_SUBJECT_ABBR}
+          autocomplete="off"
+          aria-describedby="subject-abbr-hint"
+        />
+        <span id="subject-abbr-hint" class="text-caption font-semibold text-muted">{t.abbrHint}</span>
       </label>
       <label class="flex flex-col gap-1.5">
         <span class="text-label font-bold text-ink"

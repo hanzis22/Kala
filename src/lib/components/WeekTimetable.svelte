@@ -49,6 +49,11 @@
   /** Tinggi satu baris text-caption. */
   const LINE = 16;
 
+  /** Singkatan mapel jika ada (satu baris), jika tidak nama per kata. */
+  function labelLines(subject: Subject, minutes: number, withTime: boolean): string[] {
+    return subject.abbr ? [subject.abbr] : nameLines(subject.name, minutes, withTime);
+  }
+
   /**
    * Nama mapel dipecah per kata, satu kata per baris (dipotong dengan elipsis jika lebih lebar
    * dari kolom). Lebih terbaca di kolom ±45 px daripada memotong di tengah kata.
@@ -125,7 +130,7 @@
                   onclick={() => onselect(routine)}
                 >
                   <span class="flex w-full min-w-0 flex-col" aria-hidden="true">
-                    {#each nameLines(subject.name, block.end - block.start, tall) as word, i (i)}
+                    {#each labelLines(subject, block.end - block.start, tall) as word, i (i)}
                       <span class="block truncate text-caption font-bold tracking-[-0.01em]">{word}</span>
                     {/each}
                   </span>

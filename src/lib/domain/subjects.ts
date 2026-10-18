@@ -3,20 +3,29 @@ import type { Id, Subject } from './types';
 
 export interface SubjectInput {
   name: string;
+  abbr: string | null;
   teacher: string | null;
   room: string | null;
 }
 
-export type SubjectError = 'name-required' | 'name-too-long' | 'name-duplicate' | 'detail-too-long';
+export type SubjectError =
+  'name-required' | 'name-too-long' | 'name-duplicate' | 'abbr-too-long' | 'detail-too-long';
 
 export const MAX_SUBJECT_NAME = 60;
+/** Singkatan muat di kolom grid ±45 px (PRD §F4.1). Boleh kembar antar mapel. */
+export const MAX_SUBJECT_ABBR = 6;
 export const MAX_SUBJECT_DETAIL = 40;
 
 /** Trim + spasi berlebih dirapikan; teks opsional yang kosong menjadi null. */
 export function normalizeSubjectInput(input: SubjectInput): SubjectInput {
   const clean = (value: string | null) => (value ?? '').trim().replace(/\s+/g, ' ');
   const optional = (value: string | null) => clean(value) || null;
-  return { name: clean(input.name), teacher: optional(input.teacher), room: optional(input.room) };
+  return {
+    name: clean(input.name),
+    abbr: optional(input.abbr),
+    teacher: optional(input.teacher),
+    room: optional(input.room)
+  };
 }
 
 const nameKey = (name: string) => name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID');
@@ -32,6 +41,7 @@ export function validateSubjectInput(
 ): SubjectError | null {
   if (input.name.length === 0) return 'name-required';
   if (input.name.length > MAX_SUBJECT_NAME) return 'name-too-long';
+  if ((input.abbr?.length ?? 0) > MAX_SUBJECT_ABBR) return 'abbr-too-long';
   if ((input.teacher?.length ?? 0) > MAX_SUBJECT_DETAIL || (input.room?.length ?? 0) > MAX_SUBJECT_DETAIL) {
     return 'detail-too-long';
   }

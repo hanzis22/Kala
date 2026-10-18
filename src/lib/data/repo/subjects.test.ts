@@ -8,7 +8,7 @@ import { createSubject, deleteSubject, getSubject, listSubjects, updateSubject }
 const T1 = '2026-10-19T01:00:00.000Z';
 const T2 = '2026-10-19T02:00:00.000Z';
 
-const input = (name: string, room: string | null = null) => ({ name, teacher: null, room });
+const input = (name: string, room: string | null = null) => ({ name, abbr: null, teacher: null, room });
 const session = (subjectId: string) => ({
   subjectId,
   days: ['MO' as const, 'WE' as const],
@@ -23,9 +23,13 @@ beforeEach(async () => {
 
 describe('createSubject', () => {
   it('menyimpan input yang sudah dinormalisasi dengan timestamp', async () => {
-    const s = await createSubject({ name: '  Matematika ', teacher: ' Bu Sari ', room: '' }, T1);
+    const s = await createSubject(
+      { name: '  Matematika ', abbr: ' MTK ', teacher: ' Bu Sari ', room: '' },
+      T1
+    );
     expect(s).toMatchObject({
       name: 'Matematika',
+      abbr: 'MTK',
       teacher: 'Bu Sari',
       room: null,
       createdAt: T1,
@@ -51,6 +55,39 @@ describe('listSubjects', () => {
     await createSubject(input('Biologi'), T1);
     await deleteSubject(fisika.id, T2);
     expect((await listSubjects()).map((s) => s.name)).toEqual(['Biologi', 'Matematika']);
+  });
+});
+
+describe('data lama tanpa abbr (sebelum singkatan ditambahkan)', () => {
+  // Bentuk record yang ditulis versi F4 awal: tidak ada field abbr sama sekali.
+  const legacy = {
+    id: '01JAAAAAAAAAAAAAAAAAAAAAAA',
+    name: 'Matematika',
+    teacher: null,
+    room: '7B',
+    createdAt: T1,
+    updatedAt: T1,
+    deletedAt: null
+  };
+
+  beforeEach(async () => {
+    await db.table('subjects').add(legacy);
+  });
+
+  it('listSubjects dan getSubject membacanya dengan abbr null', async () => {
+    expect(await listSubjects()).toEqual([{ ...legacy, abbr: null }]);
+    expect(await getSubject(legacy.id)).toEqual({ ...legacy, abbr: null });
+  });
+
+  it('updateSubject bisa menambahkan singkatan', async () => {
+    const next = await updateSubject(legacy.id, { ...input('Matematika', '7B'), abbr: 'MTK' }, T2);
+    expect(next).toEqual({ ...legacy, abbr: 'MTK', updatedAt: T2 });
+    expect(await getSubject(legacy.id)).toEqual(next);
+  });
+
+  it('updateSubject tanpa singkatan menyimpan abbr null secara eksplisit', async () => {
+    await updateSubject(legacy.id, input('Matematika', '7B'), T2);
+    expect(await db.subjects.get(legacy.id)).toHaveProperty('abbr', null);
   });
 });
 

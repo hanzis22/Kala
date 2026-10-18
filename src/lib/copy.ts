@@ -170,6 +170,8 @@ export const copy = {
     sheetDescription: 'Tersimpan hanya di perangkat ini.',
     name: 'Nama mapel',
     namePlaceholder: 'Misal: Matematika',
+    abbr: 'Singkatan',
+    abbrHint: 'Tampil di jadwal mingguan, misal MTK.',
     teacher: 'Guru',
     room: 'Ruang',
     optional: 'opsional',
@@ -184,6 +186,7 @@ export const copy = {
       'name-required': 'Nama mapel wajib diisi.',
       'name-too-long': 'Nama mapel maksimal 60 karakter.',
       'name-duplicate': 'Mapel dengan nama ini sudah ada.',
+      'abbr-too-long': 'Singkatan maksimal 6 karakter.',
       'detail-too-long': 'Guru dan ruang maksimal 40 karakter.',
       'not-found': 'Mapel ini sudah tidak ada.'
     } as Record<string, string>
