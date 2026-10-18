@@ -94,6 +94,8 @@ export interface Settings {
 export interface Subject extends Timestamps {
   id: Id;
   name: string;
+  /** Singkatan untuk grid Minggu (maks. 6 karakter), misal 'MTK'. Data lama tanpa field ini dibaca sebagai null. */
+  abbr: string | null;
   teacher: string | null;
   room: string | null;
 }

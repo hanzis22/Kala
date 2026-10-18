@@ -134,10 +134,24 @@ Sebagai pelajar Muslim, saya ingin tahu waktu sholat yang akurat untuk lokasi sa
 
 Sebagai pelajar, saya ingin memasukkan jadwal pelajaran sekali dan melihatnya otomatis setiap hari.
 
-1. `Subject`: nama (wajib), guru, ruang (opsional).
+1. `Subject`: nama (wajib), singkatan, guru, ruang (opsional). Singkatan maksimal 6 karakter (misal "MTK"), boleh kembar antar mapel, dan tampil di grid Minggu menggantikan nama yang terpotong di kolom ±45 px. Nama lengkap tetap dipakai di label aksesibilitas, daftar mapel, dan form.
 2. Sesi kelas disimpan sebagai `Routine` dengan `kind: 'class'` dan `subjectId`. Pengulangan mingguan pada hari tertentu (`FREQ=WEEKLY;BYDAY=MO,WE`).
 3. Tampilan **Minggu** di `/jadwal`: grid Senin–Sabtu (Minggu bisa ditampilkan lewat pengaturan), jam 06.00–18.00, sesi diwarnai token `class`.
 4. Menghapus mapel: tanya dulu, lalu soft-delete mapel beserta rutin kelasnya. Tugas lama tetap ada dengan label mapel "(dihapus)".
+
+Keputusan implementasi F4 (disetujui 19 Okt 2026):
+
+- Satu `Routine` per sesi kelas untuk semua hari yang dipilih (`BYDAY=MO,WE`). `title` dikosongkan; nama selalu diambil dari `Subject` agar ikut berubah saat mapel diganti nama.
+- `dtstart` sesi baru = hari pertama minggu yang sedang tampil (bukan hari ini), supaya sesi Senin yang dibuat hari Rabu langsung muncul di grid minggu ini.
+- Grid menampilkan minggu berjalan saja (tanpa navigasi minggu), dihitung lewat `occurrencesBetween` sehingga `exdates`/`overrides` F5 langsung tercermin.
+- Rentang jam grid minimal 06.00–18.00 dan melebar ke jam penuh terdekat jika ada sesi di luarnya; sesi tidak pernah dipotong.
+- Ruang sesi terisi otomatis dari ruang mapel dan bisa diubah per sesi; disimpan di `Routine.location`.
+- Nama mapel unik di antara mapel aktif tanpa membedakan huruf besar-kecil (agar tambah cepat F7 tidak ambigu), maksimal 60 karakter; guru dan ruang maksimal 40 karakter.
+- Mengubah sesi = mengubah seluruh seri; pilihan "hanya tanggal ini / seterusnya" ada di F5.
+- `Subject.abbr` (19 Okt 2026): di-trim, kosong disimpan sebagai `null`. Tidak di-index, jadi tidak ada versi Dexie baru; record lama tanpa field ini dinormalisasi menjadi `null` saat dibaca di repo. Tanpa singkatan, grid memakai nama per kata yang dipotong.
+- Sesi bentrok di grid Minggu (19 Okt 2026, menggantikan lane berdampingan yang hanya ±21 px di 360 px): sesi yang jamnya bertumpuk (langsung atau berantai) digabung jadi satu blok selebar kolom, dari mulai paling awal sampai selesai paling akhir, berbingkai tebal, berisi lencana jumlah sesi, singkatan/kata pertama tiap mapel, dan jam mulai jika muat; label aksesibilitasnya "N sesi bentrok, {hari} {jam}: {mapel}". Mengetuknya membuka sheet "Pilih sesi" (nama lengkap + jam, baris ≥ 44 px), lalu sheet Ubah sesi. Sesi yang hanya bersentuhan (08.30 selesai, 08.30 mulai) tidak bentrok.
+- Halaman `/jadwal` punya ruang kosong setinggi FAB di bawah grid agar jam terakhir bisa digulir ke atas FAB.
+- Sakelar "Tampilkan Minggu di jadwal" (F8.5) sementara ada di `/lainnya`, pindah ke `/lainnya/pengaturan` saat F8 dikerjakan.
 
 ### F5. Rutin berulang
 
@@ -217,7 +231,7 @@ Definisi lengkap: `src/lib/domain/types.ts`. Skema database: `src/lib/data/db.ts
 | Entitas | Kunci | Isi utama | Fase |
 |---|---|---|---|
 | `Settings` | `key = 'app'` (singleton) | nama, lokasi, parameter sholat, offset Hijriah, tema, onboardedAt, schemaVersion | 1 |
-| `Subject` | `id` | nama, guru, ruang | 1 |
+| `Subject` | `id` | nama, singkatan (`abbr`, opsional), guru, ruang | 1 |
 | `Routine` | `id` | kind (`class` / `routine` / `event`), judul, subjectId, startTime, durationMin, rrule, dtstart, until, exdates, overrides | 1 |
 | `Task` | `id` | judul, jenis, subjectId, dueDate/dueTime, scheduledDate/startTime/durationMin, prioritas, quadrant, status | 1 |
 | `Completion` | `id = sourceId:date` | penanda selesai untuk satu kejadian rutin/kelas di satu tanggal | 1 |
@@ -299,3 +313,5 @@ Event analytics (Cloudflare Web Analytics, tanpa data pribadi): `onboarding_done
 | 4 | Pengingat sholat: cukup ekspor `.ics` di Fase 2, atau perlu web push (butuh server)? | `.ics` dulu |
 | 5 | Sumber teks dzikir & doa untuk Fase 2, siapa yang memverifikasi | Perlu ditentukan sebelum Fase 2 |
 | 6 | Utang teknis: migrasi alias `$lib` ke `#lib` (SvelteKit 3). `$lib` saat ini dipertahankan lewat opsi `alias` yang deprecated (lihat `vite.config.ts`) | Tetap `$lib` sampai shadcn-svelte mendukung `#lib`; migrasi sebelum SvelteKit menghapus `alias` |
+| 7 | Blok sesi tunggal di bawah ±47 menit di grid Minggu lebih pendek dari target sentuh 44 px (sesi bentrok sudah diselesaikan, lihat keputusan F4) | Biarkan; evaluasi setelah beta |
+| 8 | FAB "+" di `/jadwal` langsung membuka sheet sesi kelas. Saat F7 (tambah cepat) ada, apakah FAB tetap khusus sesi kelas atau membuka tambah cepat/pilihan jenis? | Tetap membuka sheet sesi kelas; ditinjau ulang saat F7 |
