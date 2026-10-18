@@ -145,3 +145,63 @@ test('slot yang melewati 24.00 ditolak dengan pesan', async ({ page }) => {
   await expect(sheet.getByRole('alert')).toHaveText('Sesi harus selesai paling lambat pukul 24.00.');
   await expect(sheet).toBeVisible();
 });
+
+test('sesi bentrok tampil sebagai satu blok selebar kolom dan bisa dipilih', async ({ page }) => {
+  await page.clock.setFixedTime(NOW);
+  await completeOnboarding(page);
+  await page.goto('/jadwal/mapel');
+  for (const [name, abbr] of [
+    ['Matematika', 'MTK'],
+    ['Bahasa Indonesia', 'BIND']
+  ]) {
+    await page.getByRole('button', { name: 'Tambah mapel' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Tambah mapel' });
+    await sheet.getByLabel('Nama mapel').fill(name);
+    await sheet.getByLabel(/^Singkatan/).fill(abbr);
+    await sheet.getByRole('button', { name: 'Simpan' }).click();
+    await expect(sheet).toBeHidden();
+  }
+  await page.goto('/jadwal');
+
+  for (const [subject, start, duration] of [
+    ['Matematika', '10:00', '90'],
+    ['Bahasa Indonesia', '10:30', '45']
+  ]) {
+    await page.getByRole('button', { name: 'Tambah sesi kelas' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Tambah sesi kelas' });
+    await sheet.getByRole('combobox', { name: 'Mapel' }).selectOption({ label: subject });
+    await sheet.getByRole('button', { name: 'Kamis' }).click();
+    await sheet.getByLabel('Jam mulai').fill(start);
+    await sheet.getByLabel('Durasi (menit)').fill(duration);
+    await sheet.getByRole('button', { name: 'Simpan' }).click();
+    await expect(sheet).toBeHidden();
+  }
+
+  // Satu blok selebar kolom, bukan dua lane sempit.
+  const clash = page.getByRole('button', {
+    name: '2 sesi bentrok, Kamis 10.00–11.30: Matematika, Bahasa Indonesia. Pilih sesi'
+  });
+  await expect(clash).toBeVisible();
+  await expect(clash).toHaveAttribute('data-date', '2026-10-22');
+  await expect(clash).toHaveAttribute('data-clash', '2');
+  await expect(clash).toContainText('MTK');
+  await expect(clash).toContainText('BIND');
+  await expect(page.locator('[data-routine]')).toHaveCount(0);
+  const column = await page.getByRole('list', { name: 'Kamis' }).boundingBox();
+  const block = await clash.boundingBox();
+  expect(block?.width).toBeGreaterThanOrEqual((column?.width ?? 0) - 2);
+
+  // Pilih sesi → sheet ubah berisi data sesi itu.
+  await clash.click();
+  const picker = page.getByRole('dialog', { name: 'Pilih sesi' });
+  await expect(picker).toContainText('Jam sesi ini bertumpuk di hari Kamis');
+  await picker.getByRole('button', { name: 'Ubah Bahasa Indonesia, 10.30–11.15' }).click();
+  await expect(picker).toBeHidden();
+  const edit = page.getByRole('dialog', { name: 'Ubah sesi kelas' });
+  await expect(edit.getByRole('combobox', { name: 'Mapel' }).locator('option:checked')).toHaveText(
+    'Bahasa Indonesia'
+  );
+  await expect(edit.getByRole('button', { name: 'Kamis' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(edit.getByLabel('Jam mulai')).toHaveValue('10:30');
+  await expect(edit.getByLabel('Durasi (menit)')).toHaveValue('45');
+});

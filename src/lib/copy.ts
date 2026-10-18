@@ -154,7 +154,12 @@ export const copy = {
     addSession: 'Tambah sesi kelas',
     todayMarker: 'hari ini',
     blockLabel: (subject: string, day: string, start: string, end: string, room: string | null) =>
-      `${subject}, ${day} ${start}–${end}${room ? `, ruang ${room}` : ''}. Ubah sesi`
+      `${subject}, ${day} ${start}–${end}${room ? `, ruang ${room}` : ''}. Ubah sesi`,
+    clashLabel: (n: number, day: string, start: string, end: string, subjects: string) =>
+      `${n} sesi bentrok, ${day} ${start}–${end}: ${subjects}. Pilih sesi`,
+    pickTitle: 'Pilih sesi',
+    pickDescription: (day: string) => `Jam sesi ini bertumpuk di hari ${day}. Pilih yang ingin kamu ubah.`,
+    pickItemLabel: (subject: string, start: string, end: string) => `Ubah ${subject}, ${start}–${end}`
   },
 
   subjects: {

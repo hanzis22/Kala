@@ -149,6 +149,7 @@ Keputusan implementasi F4 (disetujui 19 Okt 2026):
 - Nama mapel unik di antara mapel aktif tanpa membedakan huruf besar-kecil (agar tambah cepat F7 tidak ambigu), maksimal 60 karakter; guru dan ruang maksimal 40 karakter.
 - Mengubah sesi = mengubah seluruh seri; pilihan "hanya tanggal ini / seterusnya" ada di F5.
 - `Subject.abbr` (19 Okt 2026): di-trim, kosong disimpan sebagai `null`. Tidak di-index, jadi tidak ada versi Dexie baru; record lama tanpa field ini dinormalisasi menjadi `null` saat dibaca di repo. Tanpa singkatan, grid memakai nama per kata yang dipotong.
+- Sesi bentrok di grid Minggu (19 Okt 2026, menggantikan lane berdampingan yang hanya ±21 px di 360 px): sesi yang jamnya bertumpuk (langsung atau berantai) digabung jadi satu blok selebar kolom, dari mulai paling awal sampai selesai paling akhir, berbingkai tebal, berisi lencana jumlah sesi, singkatan/kata pertama tiap mapel, dan jam mulai jika muat; label aksesibilitasnya "N sesi bentrok, {hari} {jam}: {mapel}". Mengetuknya membuka sheet "Pilih sesi" (nama lengkap + jam, baris ≥ 44 px), lalu sheet Ubah sesi. Sesi yang hanya bersentuhan (08.30 selesai, 08.30 mulai) tidak bentrok.
 - Sakelar "Tampilkan Minggu di jadwal" (F8.5) sementara ada di `/lainnya`, pindah ke `/lainnya/pengaturan` saat F8 dikerjakan.
 
 ### F5. Rutin berulang
@@ -311,5 +312,5 @@ Event analytics (Cloudflare Web Analytics, tanpa data pribadi): `onboarding_done
 | 4 | Pengingat sholat: cukup ekspor `.ics` di Fase 2, atau perlu web push (butuh server)? | `.ics` dulu |
 | 5 | Sumber teks dzikir & doa untuk Fase 2, siapa yang memverifikasi | Perlu ditentukan sebelum Fase 2 |
 | 6 | Utang teknis: migrasi alias `$lib` ke `#lib` (SvelteKit 3). `$lib` saat ini dipertahankan lewat opsi `alias` yang deprecated (lihat `vite.config.ts`) | Tetap `$lib` sampai shadcn-svelte mendukung `#lib`; migrasi sebelum SvelteKit menghapus `alias` |
-| 7 | Sesi bentrok di grid Minggu 360 px tampil sangat sempit (lane berdampingan ±21 px), dan blok sesi di bawah ±47 menit lebih pendek dari target sentuh 44 px | Lane berdampingan seperti sekarang; evaluasi setelah beta |
+| 7 | Blok sesi tunggal di bawah ±47 menit di grid Minggu lebih pendek dari target sentuh 44 px (sesi bentrok sudah diselesaikan, lihat keputusan F4) | Biarkan; evaluasi setelah beta |
 | 8 | FAB "+" di `/jadwal` langsung membuka sheet sesi kelas. Saat F7 (tambah cepat) ada, apakah FAB tetap khusus sesi kelas atau membuka tambah cepat/pilihan jenis? | Tetap membuka sheet sesi kelas; ditinjau ulang saat F7 |

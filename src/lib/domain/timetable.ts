@@ -2,7 +2,7 @@
  * Timetable mingguan (PRD §F4). Fungsi murni: tanggal minggu, rentang jam grid,
  * penempatan sesi kelas, dan validasi input sesi.
  */
-import { assignLanes, type WithLane } from './agenda';
+import { groupOverlaps, type OverlapGroup } from './agenda';
 import { addDays, dayNumber } from './dates';
 import {
   occurrencesBetween,
@@ -54,12 +54,16 @@ export function hourRange(occurrences: readonly Pick<Occurrence, 'start' | 'end'
   return { startHour, endHour };
 }
 
-export type TimetableBlock = WithLane<Occurrence>;
+/**
+ * Satu blok di grid: satu sesi, atau beberapa sesi yang bentrok digabung selebar rentangnya
+ * (kolom ±45 px terlalu sempit untuk lane berdampingan).
+ */
+export type TimetableSlot = OverlapGroup<Occurrence>;
 
 export interface TimetableDay {
   date: LocalDate;
   weekday: Weekday;
-  blocks: TimetableBlock[];
+  slots: TimetableSlot[];
 }
 
 export interface WeekTimetable extends HourRange {
@@ -90,9 +94,9 @@ export function buildWeekTimetable(
   const days = visible.map((d) => ({
     date: d,
     weekday: weekdayOf(d),
-    blocks: assignLanes(byDate.get(d) ?? [])
+    slots: groupOverlaps(byDate.get(d) ?? [])
   }));
-  return { days, ...hourRange(days.flatMap((d) => d.blocks)) };
+  return { days, ...hourRange(days.flatMap((d) => d.slots)) };
 }
 
 // ---------- Validasi sesi kelas ----------

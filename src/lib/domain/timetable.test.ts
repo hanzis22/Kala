@@ -82,25 +82,26 @@ describe('buildWeekTimetable', () => {
   it('menaruh kejadian di hari yang benar', () => {
     const grid = buildWeekTimetable([routine('mtk')], '2026-10-22', options);
     expect(grid.days.map((d) => d.weekday)).toEqual(['MO', 'TU', 'WE', 'TH', 'FR', 'SA']);
-    expect(grid.days.map((d) => d.blocks.length)).toEqual([1, 0, 1, 0, 0, 0]);
-    expect(grid.days[0].blocks[0]).toMatchObject({
-      routineId: 'mtk',
-      start: 420,
-      end: 510,
-      lane: 0,
-      laneCount: 1
-    });
+    expect(grid.days.map((d) => d.slots.length)).toEqual([1, 0, 1, 0, 0, 0]);
+    expect(grid.days[0].slots[0]).toMatchObject({ start: 420, end: 510 });
+    expect(grid.days[0].slots[0].items).toEqual([
+      expect.objectContaining({ routineId: 'mtk', date: '2026-10-19', start: 420, end: 510 })
+    ]);
   });
 
-  it('sesi bentrok di hari yang sama mendapat lane berbeda', () => {
+  it('sesi bentrok di hari yang sama digabung jadi satu slot selebar rentangnya', () => {
     const grid = buildWeekTimetable(
-      [routine('mtk'), routine('ipa', { rrule: 'FREQ=WEEKLY;BYDAY=MO', startTime: '08:00' })],
+      [
+        routine('ipa', { rrule: 'FREQ=WEEKLY;BYDAY=MO', startTime: '08:00' }),
+        routine('mtk'),
+        routine('bin', { rrule: 'FREQ=WEEKLY;BYDAY=MO', startTime: '10:00', durationMin: 60 })
+      ],
       '2026-10-19',
       options
     );
-    expect(grid.days[0].blocks.map((b) => [b.routineId, b.lane, b.laneCount])).toEqual([
-      ['mtk', 0, 2],
-      ['ipa', 1, 2]
+    expect(grid.days[0].slots.map((s) => [s.start, s.end, s.items.map((o) => o.routineId)])).toEqual([
+      [420, 570, ['mtk', 'ipa']],
+      [600, 660, ['bin']]
     ]);
   });
 
@@ -109,7 +110,7 @@ describe('buildWeekTimetable', () => {
     expect(buildWeekTimetable([sunday], '2026-10-19', options)).toMatchObject({ endHour: 18 });
     const shown = buildWeekTimetable([sunday], '2026-10-19', { ...options, showSunday: true });
     expect(shown.endHour).toBe(21);
-    expect(shown.days.at(-1)?.blocks).toHaveLength(1);
+    expect(shown.days.at(-1)?.slots).toHaveLength(1);
   });
 
   it('menghormati exdate dan dtstart', () => {
@@ -118,7 +119,14 @@ describe('buildWeekTimetable', () => {
       '2026-10-19',
       options
     );
-    expect(grid.days.map((d) => d.blocks.map((b) => b.routineId))).toEqual([[], [], ['mtk'], [], [], []]);
+    expect(grid.days.map((d) => d.slots.flatMap((s) => s.items.map((o) => o.routineId)))).toEqual([
+      [],
+      [],
+      ['mtk'],
+      [],
+      [],
+      []
+    ]);
   });
 });
 
