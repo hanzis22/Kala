@@ -311,3 +311,5 @@ Event analytics (Cloudflare Web Analytics, tanpa data pribadi): `onboarding_done
 | 4 | Pengingat sholat: cukup ekspor `.ics` di Fase 2, atau perlu web push (butuh server)? | `.ics` dulu |
 | 5 | Sumber teks dzikir & doa untuk Fase 2, siapa yang memverifikasi | Perlu ditentukan sebelum Fase 2 |
 | 6 | Utang teknis: migrasi alias `$lib` ke `#lib` (SvelteKit 3). `$lib` saat ini dipertahankan lewat opsi `alias` yang deprecated (lihat `vite.config.ts`) | Tetap `$lib` sampai shadcn-svelte mendukung `#lib`; migrasi sebelum SvelteKit menghapus `alias` |
+| 7 | Sesi bentrok di grid Minggu 360 px tampil sangat sempit (lane berdampingan ±21 px), dan blok sesi di bawah ±47 menit lebih pendek dari target sentuh 44 px | Lane berdampingan seperti sekarang; evaluasi setelah beta |
+| 8 | FAB "+" di `/jadwal` langsung membuka sheet sesi kelas. Saat F7 (tambah cepat) ada, apakah FAB tetap khusus sesi kelas atau membuka tambah cepat/pilihan jenis? | Tetap membuka sheet sesi kelas; ditinjau ulang saat F7 |
