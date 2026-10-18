@@ -139,6 +139,17 @@ Sebagai pelajar, saya ingin memasukkan jadwal pelajaran sekali dan melihatnya ot
 3. Tampilan **Minggu** di `/jadwal`: grid Senin–Sabtu (Minggu bisa ditampilkan lewat pengaturan), jam 06.00–18.00, sesi diwarnai token `class`.
 4. Menghapus mapel: tanya dulu, lalu soft-delete mapel beserta rutin kelasnya. Tugas lama tetap ada dengan label mapel "(dihapus)".
 
+Keputusan implementasi F4 (disetujui 19 Okt 2026):
+
+- Satu `Routine` per sesi kelas untuk semua hari yang dipilih (`BYDAY=MO,WE`). `title` dikosongkan; nama selalu diambil dari `Subject` agar ikut berubah saat mapel diganti nama.
+- `dtstart` sesi baru = hari pertama minggu yang sedang tampil (bukan hari ini), supaya sesi Senin yang dibuat hari Rabu langsung muncul di grid minggu ini.
+- Grid menampilkan minggu berjalan saja (tanpa navigasi minggu), dihitung lewat `occurrencesBetween` sehingga `exdates`/`overrides` F5 langsung tercermin.
+- Rentang jam grid minimal 06.00–18.00 dan melebar ke jam penuh terdekat jika ada sesi di luarnya; sesi tidak pernah dipotong.
+- Ruang sesi terisi otomatis dari ruang mapel dan bisa diubah per sesi; disimpan di `Routine.location`.
+- Nama mapel unik di antara mapel aktif tanpa membedakan huruf besar-kecil (agar tambah cepat F7 tidak ambigu), maksimal 60 karakter; guru dan ruang maksimal 40 karakter.
+- Mengubah sesi = mengubah seluruh seri; pilihan "hanya tanggal ini / seterusnya" ada di F5.
+- Sakelar "Tampilkan Minggu di jadwal" (F8.5) sementara ada di `/lainnya`, pindah ke `/lainnya/pengaturan` saat F8 dikerjakan.
+
 ### F5. Rutin berulang
 
 Sebagai pelajar, saya ingin kegiatan berulang (les, olahraga, murajaah) muncul otomatis.
