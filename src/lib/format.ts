@@ -27,3 +27,14 @@ export function formatDayDate(date: LocalDate): string {
 export function formatWeekdayShort(date: LocalDate): string {
   return weekdayShort.format(utcNoon(date)).replace(/\.$/, '');
 }
+
+const dayMonth = new Intl.DateTimeFormat('id-ID', { timeZone: 'UTC', day: 'numeric', month: 'short' });
+
+/** '2026-10-19', '2026-10-24' → '19–24 Okt'; beda bulan → '28 Des – 2 Jan'. */
+export function formatDateRange(from: LocalDate, to: LocalDate): string {
+  const clean = (s: string) => s.replace(/\.$/, '');
+  if (from.slice(0, 7) === to.slice(0, 7)) {
+    return `${Number(from.slice(8, 10))}–${clean(dayMonth.format(utcNoon(to)))}`;
+  }
+  return `${clean(dayMonth.format(utcNoon(from)))} – ${clean(dayMonth.format(utcNoon(to)))}`;
+}

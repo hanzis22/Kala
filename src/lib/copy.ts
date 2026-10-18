@@ -2,6 +2,7 @@
  * Semua teks UI Kala. Bahasa Indonesia, sapaan "kamu".
  * Dikumpulkan di sini agar siap i18n (Paraglide, Fase 3).
  */
+import type { Weekday } from '$lib/domain/recurrence';
 import type { PrayerName } from '$lib/domain/types';
 
 export const copy = {
@@ -9,8 +10,24 @@ export const copy = {
   loading: 'Memuat…',
 
   common: {
-    close: 'Tutup'
+    close: 'Tutup',
+    save: 'Simpan',
+    cancel: 'Batal',
+    delete: 'Hapus'
   },
+
+  weekdays: {
+    short: { MO: 'Sen', TU: 'Sel', WE: 'Rab', TH: 'Kam', FR: 'Jum', SA: 'Sab', SU: 'Min' },
+    long: {
+      MO: 'Senin',
+      TU: 'Selasa',
+      WE: 'Rabu',
+      TH: 'Kamis',
+      FR: 'Jumat',
+      SA: 'Sabtu',
+      SU: 'Minggu'
+    }
+  } satisfies Record<'short' | 'long', Record<Weekday, string>>,
 
   nav: {
     label: 'Navigasi utama',
@@ -31,6 +48,9 @@ export const copy = {
       title: 'Jadwal',
       emptyTitle: 'Belum ada jadwal',
       emptyBody: 'Jadwal pelajaran dan rutinmu akan tampil di sini.'
+    },
+    subjects: {
+      title: 'Mata pelajaran'
     },
     tasks: {
       title: 'Tugas',
@@ -118,6 +138,90 @@ export const copy = {
     noResults: 'Tidak ada kota yang cocok.',
     loadingCities: 'Memuat daftar kota…',
     loadFailed: 'Daftar kota gagal dimuat. Coba buka lagi.'
+  },
+
+  schedule: {
+    subjectsLink: 'Mapel',
+    subjectsLinkLabel: 'Kelola mata pelajaran',
+    weekHeading: 'Minggu ini',
+    weekAria: (range: string) => `Jadwal pelajaran ${range}`,
+    noSubjectsTitle: 'Mulai dari mata pelajaran',
+    noSubjectsBody:
+      'Tambahkan mapelmu dulu, lalu isi jam pelajarannya sekali saja. Jadwal ini tampil otomatis setiap minggu.',
+    noSubjectsAction: 'Kelola mapel',
+    noSessionsTitle: 'Belum ada jam pelajaran',
+    noSessionsBody: 'Ketuk + untuk menambah sesi kelas pertamamu.',
+    addSession: 'Tambah sesi kelas',
+    todayMarker: 'hari ini',
+    blockLabel: (subject: string, day: string, start: string, end: string, room: string | null) =>
+      `${subject}, ${day} ${start}–${end}${room ? `, ruang ${room}` : ''}. Ubah sesi`
+  },
+
+  subjects: {
+    back: 'Kembali ke Jadwal',
+    listHeading: 'Daftar mapel',
+    emptyTitle: 'Belum ada mapel',
+    emptyBody: 'Tambahkan mata pelajaran yang kamu ikuti. Guru dan ruang boleh dikosongkan.',
+    add: 'Tambah mapel',
+    sessions: (n: number) => (n === 0 ? 'Belum ada sesi' : `${n} sesi per minggu`),
+    editLabel: (name: string) => `Ubah ${name}`,
+    sheetAddTitle: 'Tambah mapel',
+    sheetEditTitle: 'Ubah mapel',
+    sheetDescription: 'Tersimpan hanya di perangkat ini.',
+    name: 'Nama mapel',
+    namePlaceholder: 'Misal: Matematika',
+    teacher: 'Guru',
+    room: 'Ruang',
+    optional: 'opsional',
+    delete: 'Hapus mapel',
+    confirmTitle: (name: string) => `Hapus ${name}?`,
+    confirmBody: (n: number) =>
+      n === 0
+        ? 'Mapel ini akan dihapus dari daftarmu.'
+        : `${n} sesi kelas per minggu ikut dihapus dari jadwal. Tugas yang sudah ada tetap tersimpan.`,
+    confirmAction: 'Ya, hapus',
+    errors: {
+      'name-required': 'Nama mapel wajib diisi.',
+      'name-too-long': 'Nama mapel maksimal 60 karakter.',
+      'name-duplicate': 'Mapel dengan nama ini sudah ada.',
+      'detail-too-long': 'Guru dan ruang maksimal 40 karakter.',
+      'not-found': 'Mapel ini sudah tidak ada.'
+    } as Record<string, string>
+  },
+
+  session: {
+    sheetAddTitle: 'Tambah sesi kelas',
+    sheetEditTitle: 'Ubah sesi kelas',
+    sheetDescription: 'Sesi berulang setiap minggu di hari yang kamu pilih.',
+    subject: 'Mapel',
+    noSubjects: 'Belum ada mapel. Tambahkan dulu, lalu kembali ke sini.',
+    addSubject: 'Tambah mapel',
+    days: 'Hari',
+    startTime: 'Jam mulai',
+    duration: 'Durasi (menit)',
+    endsAt: (time: string) => `Selesai pukul ${time}`,
+    room: 'Ruang',
+    roomHint: 'Terisi dari ruang mapel. Ubah jika sesi ini di ruang lain.',
+    sundayHidden: 'Kolom Minggu sedang disembunyikan. Aktifkan di tab Lainnya.',
+    delete: 'Hapus sesi',
+    confirmTitle: 'Hapus sesi ini?',
+    confirmBody: (subject: string, days: string) => `${subject} setiap ${days} dihapus dari jadwal.`,
+    confirmAction: 'Ya, hapus',
+    errors: {
+      'subject-required': 'Pilih mapel dulu.',
+      'days-required': 'Pilih minimal satu hari.',
+      'invalid-time': 'Jam mulai belum diisi.',
+      'duration-range': 'Durasi 5–720 menit.',
+      'past-midnight': 'Sesi harus selesai paling lambat pukul 24.00.',
+      'location-too-long': 'Ruang maksimal 40 karakter.',
+      'not-found': 'Sesi ini sudah tidak ada.'
+    } as Record<string, string>
+  },
+
+  moreSettings: {
+    scheduleHeading: 'Jadwal',
+    showSunday: 'Tampilkan Minggu di jadwal',
+    showSundayHint: 'Untuk kelas atau les di hari Minggu.'
   },
 
   update: {
