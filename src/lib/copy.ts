@@ -29,6 +29,21 @@ export const copy = {
     }
   } satisfies Record<'short' | 'long', Record<Weekday, string>>,
 
+  /** Kalimat pola rutin (dipakai describeRule di domain). */
+  recurrence: {
+    daily: (n: number) => (n === 1 ? 'Setiap hari' : `Setiap ${n} hari`),
+    weekly: (n: number) => (n === 1 ? 'Setiap minggu' : `Setiap ${n} minggu`),
+    monthly: (n: number) => (n === 1 ? 'Bulanan' : `Setiap ${n} bulan`),
+    monthday: (day: number) => `tanggal ${day}`,
+    lastDay: 'hari terakhir',
+    /** nth: 1–5, atau -1 = terakhir. */
+    ordinal: (nth: number) =>
+      nth === -1 ? 'terakhir' : (['pertama', 'kedua', 'ketiga', 'keempat', 'kelima'][nth - 1] ?? `ke-${nth}`),
+    nthWeekday: (day: string, ordinal: string) => `${day} ${ordinal}`,
+    joinList: (items: readonly string[]) =>
+      items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} & ${items[items.length - 1]}`
+  },
+
   nav: {
     label: 'Navigasi utama',
     today: 'Hari Ini',

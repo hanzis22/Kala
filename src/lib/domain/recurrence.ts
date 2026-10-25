@@ -5,14 +5,16 @@
  * dibaca kembali dengan getUTC*. Dengan begitu zona waktu dan DST perangkat tidak pernah ikut campur.
  *
  * Urutan aturan per tanggal:
- * 1. Pola: `rrule` (RFC 5545 tanpa DTSTART). `rrule: null` = kegiatan sekali, hanya di `dtstart`.
+ * 1. Pola: `rrule` (subset RFC 5545 tanpa DTSTART, lihat `parseRule`). `rrule: null` = kegiatan sekali,
+ *    hanya di `dtstart`. Pola di luar subset membuat occurrencesBetween melempar RangeError.
  * 2. Batas: `dtstart` ≤ tanggal ≤ `until` (keduanya inklusif).
  * 3. `exdates` membuang tanggal (menang atas override).
  * 4. `overrides` mengganti jam/durasi untuk tanggal itu. Override yang membuat slot tidak valid
  *    (mis. melewati 24.00) diabaikan dan jam induk dipakai. Override untuk tanggal yang bukan
  *    kejadian tidak membuat kejadian baru.
  */
-import { RRule, type Options, type Weekday as RRuleWeekday } from 'rrule';
+import { RRule, type Options } from 'rrule';
+import { copy } from '../copy';
 import { dayNumber, isValidLocalDate, isValidLocalTime, MINUTES_PER_DAY, toMinutes } from './dates';
 import type { Id, LocalDate, LocalTime, Minutes, Routine } from './types';
 
@@ -55,25 +57,147 @@ export function validateTimeSlot(startTime: LocalTime, durationMin: number): Slo
   return null;
 }
 
-/** ['WE', 'MO', 'WE'] → 'FREQ=WEEKLY;BYDAY=MO,WE'. Hari diurutkan dan diduplikasi. */
-export function weeklyRule(days: readonly Weekday[]): string {
-  const unique = WEEKDAYS.filter((d) => days.includes(d));
-  if (unique.length === 0) throw new RangeError('Pola mingguan butuh minimal satu hari');
-  return `FREQ=WEEKLY;BYDAY=${unique.join(',')}`;
+// ---------- Pola (subset RRULE yang didukung Kala) ----------
+
+/** Opsi bulanan: tanggal X (1–31, atau -1 = hari terakhir bulan) atau hari ke-N (1–5, atau -1 = terakhir). */
+export type MonthlyBy = { kind: 'monthday'; day: number } | { kind: 'nth'; nth: number; weekday: Weekday };
+
+/**
+ * Bentuk terstruktur subset RRULE yang didukung (union tertutup). `interval` 1–99.
+ * Di luar bentuk ini rutin dianggap tidak didukung: tampil read-only dan tidak pernah dihitung.
+ */
+export type RuleSpec =
+  | { freq: 'daily'; interval: number }
+  | { freq: 'weekly'; interval: number; days: Weekday[] }
+  | { freq: 'monthly'; interval: number; by: MonthlyBy };
+
+export const MAX_INTERVAL = 99;
+
+export type RuleSpecError = 'interval-range' | 'days-required' | 'monthday-range';
+
+/** Kesalahan pertama pada sebuah RuleSpec, atau null jika valid. */
+export function ruleSpecError(spec: RuleSpec): RuleSpecError | null {
+  if (!Number.isInteger(spec.interval) || spec.interval < 1 || spec.interval > MAX_INTERVAL) {
+    return 'interval-range';
+  }
+  if (spec.freq === 'weekly' && !spec.days.some((d) => WEEKDAYS.includes(d))) return 'days-required';
+  if (spec.freq === 'monthly') {
+    const by = spec.by;
+    const valid =
+      by.kind === 'monthday'
+        ? Number.isInteger(by.day) && (by.day === -1 || (by.day >= 1 && by.day <= 31))
+        : Number.isInteger(by.nth) &&
+          (by.nth === -1 || (by.nth >= 1 && by.nth <= 5)) &&
+          WEEKDAYS.includes(by.weekday);
+    if (!valid) return 'monthday-range';
+  }
+  return null;
 }
 
-/** Hari dalam pola mingguan, urut Senin–Minggu. Pola selain FREQ=WEEKLY atau tanpa BYDAY → []. */
-export function weeklyDays(rrule: string): Weekday[] {
-  let options: Partial<Options>;
-  try {
-    options = RRule.parseString(rrule);
-  } catch {
-    return [];
+/**
+ * RuleSpec → string RRULE kanonik: FREQ, INTERVAL (hanya jika > 1, agar rrule kelas lama tetap sama
+ * persis), lalu BYDAY/BYMONTHDAY. Hari mingguan urut Senin–Minggu tanpa duplikat; ordinal ditulis
+ * +2MO / -1FR. Spec tidak valid → RangeError.
+ */
+export function buildRule(spec: RuleSpec): string {
+  const error = ruleSpecError(spec);
+  if (error) throw new RangeError(`Pola tidak valid (${error}): ${JSON.stringify(spec)}`);
+  const parts = [`FREQ=${spec.freq.toUpperCase()}`];
+  if (spec.interval > 1) parts.push(`INTERVAL=${spec.interval}`);
+  if (spec.freq === 'weekly') {
+    parts.push(`BYDAY=${WEEKDAYS.filter((d) => spec.days.includes(d)).join(',')}`);
+  } else if (spec.freq === 'monthly') {
+    const by = spec.by;
+    if (by.kind === 'monthday') parts.push(`BYMONTHDAY=${by.day}`);
+    else parts.push(`BYDAY=${by.nth > 0 ? '+' : ''}${by.nth}${by.weekday}`);
   }
-  if (options.freq !== RRule.WEEKLY || options.byweekday == null) return [];
-  const raw = Array.isArray(options.byweekday) ? options.byweekday : [options.byweekday];
-  const indexes = new Set(raw.map((d) => (typeof d === 'number' ? d : (d as RRuleWeekday).weekday)));
-  return WEEKDAYS.filter((_, i) => indexes.has(i));
+  return parts.join(';');
+}
+
+const ALLOWED_KEYS = new Set(['FREQ', 'INTERVAL', 'BYDAY', 'BYMONTHDAY']);
+const NTH_DAY_RE = /^([+-]?)(\d)(MO|TU|WE|TH|FR|SA|SU)$/;
+
+/**
+ * String RRULE → RuleSpec, atau null jika di luar subset. Tokenizer sendiri dengan allowlist kunci
+ * (FREQ, INTERVAL, BYDAY, BYMONTHDAY): kunci ganda, kunci lain (COUNT, UNTIL, BYSETPOS, WKST, …),
+ * dan nilai di luar batas ditolak. Sengaja tidak memakai RRule.parseString, yang menerima jauh lebih banyak.
+ */
+export function parseRule(rrule: string): RuleSpec | null {
+  const fields = new Map<string, string>();
+  for (const part of rrule.split(';')) {
+    const pieces = part.split('=');
+    if (pieces.length !== 2) return null;
+    const [key, value] = pieces;
+    if (!ALLOWED_KEYS.has(key) || fields.has(key) || value === '') return null;
+    fields.set(key, value);
+  }
+
+  const intervalRaw = fields.get('INTERVAL') ?? '1';
+  if (!/^\d{1,2}$/.test(intervalRaw)) return null;
+  const interval = Number(intervalRaw);
+  if (interval < 1 || interval > MAX_INTERVAL) return null;
+
+  const byday = fields.get('BYDAY');
+  const bymonthday = fields.get('BYMONTHDAY');
+
+  switch (fields.get('FREQ')) {
+    case 'DAILY':
+      if (byday !== undefined || bymonthday !== undefined) return null;
+      return { freq: 'daily', interval };
+    case 'WEEKLY': {
+      if (byday === undefined || bymonthday !== undefined) return null;
+      const tokens = byday.split(',');
+      if (!tokens.every((t) => (WEEKDAYS as readonly string[]).includes(t))) return null;
+      return { freq: 'weekly', interval, days: WEEKDAYS.filter((d) => tokens.includes(d)) };
+    }
+    case 'MONTHLY': {
+      if ((byday === undefined) === (bymonthday === undefined)) return null;
+      if (bymonthday !== undefined) {
+        if (!/^-?\d{1,2}$/.test(bymonthday)) return null;
+        const day = Number(bymonthday);
+        if (day !== -1 && (day < 1 || day > 31)) return null;
+        return { freq: 'monthly', interval, by: { kind: 'monthday', day } };
+      }
+      const match = NTH_DAY_RE.exec(byday ?? '');
+      if (!match) return null;
+      const [, sign, digit, weekday] = match;
+      const nth = Number(digit) * (sign === '-' ? -1 : 1);
+      if (nth !== -1 && (nth < 1 || nth > 5)) return null;
+      return { freq: 'monthly', interval, by: { kind: 'nth', nth, weekday: weekday as Weekday } };
+    }
+    default:
+      return null;
+  }
+}
+
+/** true jika Kala bisa menghitung rutin ini: kegiatan sekali, atau pola di dalam subset. */
+export function isSupportedRoutine(routine: Pick<Routine, 'rrule'>): boolean {
+  return routine.rrule === null || parseRule(routine.rrule) !== null;
+}
+
+/** Kalimat pola untuk UI, misal "Setiap 2 minggu, Senin & Rabu". */
+export function describeRule(spec: RuleSpec): string {
+  const t = copy.recurrence;
+  if (spec.freq === 'daily') return t.daily(spec.interval);
+  if (spec.freq === 'weekly') {
+    return `${t.weekly(spec.interval)}, ${t.joinList(spec.days.map((d) => copy.weekdays.long[d]))}`;
+  }
+  const by = spec.by;
+  let detail: string;
+  if (by.kind === 'monthday') detail = by.day === -1 ? t.lastDay : t.monthday(by.day);
+  else detail = t.nthWeekday(copy.weekdays.long[by.weekday], t.ordinal(by.nth));
+  return `${t.monthly(spec.interval)}, ${detail}`;
+}
+
+/** ['WE', 'MO', 'WE'] → 'FREQ=WEEKLY;BYDAY=MO,WE'. Hari diurutkan dan diduplikasi. */
+export function weeklyRule(days: readonly Weekday[]): string {
+  return buildRule({ freq: 'weekly', interval: 1, days: [...days] });
+}
+
+/** Hari dalam pola mingguan, urut Senin–Minggu. Pola selain mingguan yang didukung → []. */
+export function weeklyDays(rrule: string): Weekday[] {
+  const spec = parseRule(rrule);
+  return spec?.freq === 'weekly' ? spec.days : [];
 }
 
 /** Hari dalam minggu untuk sebuah LocalDate. */
@@ -127,7 +251,7 @@ function eventDays(routine: RecurrenceInput, startDay: number, endDay: number): 
 }
 
 function ruleDays(routine: RecurrenceInput, startDay: number, endDay: number): number[] {
-  const rule = buildRule(routine);
+  const rule = compileRule(routine);
   const after = new Date(startDay * DAY_MS);
   const before = new Date(endDay * DAY_MS);
   return rule.between(after, before, true).map((d) => Math.floor(d.getTime() / DAY_MS));
@@ -135,16 +259,26 @@ function ruleDays(routine: RecurrenceInput, startDay: number, endDay: number): n
 
 const ruleCache = new Map<string, RRule>();
 
-function buildRule(routine: RecurrenceInput): RRule {
+const RRULE_WEEKDAYS = [RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA, RRule.SU];
+const rruleWeekday = (d: Weekday) => RRULE_WEEKDAYS[WEEKDAYS.indexOf(d)];
+const RRULE_FREQ = { daily: RRule.DAILY, weekly: RRule.WEEKLY, monthly: RRule.MONTHLY } as const;
+
+/** Opsi RRule disusun dari RuleSpec, bukan dari string mentah. Pola di luar subset → RangeError. */
+function compileRule(routine: RecurrenceInput): RRule {
   const key = `${routine.rrule}|${routine.dtstart}|${routine.until ?? ''}`;
   const cached = ruleCache.get(key);
   if (cached) return cached;
 
-  const rrule = routine.rrule ?? '';
-  if (/DTSTART|UNTIL/i.test(rrule)) {
-    throw new RangeError(`RRULE tidak boleh memuat DTSTART/UNTIL (pakai field dtstart/until): ${rrule}`);
+  const spec = parseRule(routine.rrule ?? '');
+  if (spec === null) throw new RangeError(`Pola RRULE tidak didukung: ${routine.rrule}`);
+
+  const options: Partial<Options> = { freq: RRULE_FREQ[spec.freq], interval: spec.interval, wkst: RRule.MO };
+  if (spec.freq === 'weekly') options.byweekday = spec.days.map(rruleWeekday);
+  if (spec.freq === 'monthly') {
+    if (spec.by.kind === 'monthday') options.bymonthday = [spec.by.day];
+    else options.byweekday = [rruleWeekday(spec.by.weekday).nth(spec.by.nth)];
   }
-  const options = RRule.parseString(rrule);
+
   const rule = new RRule({
     ...options,
     dtstart: new Date(dayNumber(routine.dtstart) * DAY_MS),
