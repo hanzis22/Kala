@@ -166,6 +166,7 @@ Sebagai pelajar, saya ingin kegiatan berulang (les, olahraga, murajaah) muncul o
 Keputusan implementasi F5 (25 Okt 2026):
 
 - Subset RRULE tertutup, divalidasi tokenizer sendiri (`parseRule`) dengan allowlist kunci `FREQ`, `INTERVAL`, `BYDAY`, `BYMONTHDAY`: `DAILY`; `WEEKLY` + `BYDAY` (tanpa ordinal); `MONTHLY` + tepat satu `BYMONTHDAY` 1..31 atau −1, atau tepat satu `BYDAY` berordinal +1..+5 atau −1. `INTERVAL` 1–99. Kunci ganda dan kunci lain (`COUNT`, `UNTIL`, `BYSETPOS`, `WKST`, …) ditolak. Opsi RRule disusun dari bentuk terstruktur ini, bukan dari string mentah, dan `WKST` dipatok Senin. String kanonik: `FREQ`, lalu `INTERVAL` (hanya jika > 1), lalu `BYDAY`/`BYMONTHDAY`.
+- Bawaan rutin baru: jam mulai 16.00 (rutin adalah kegiatan di luar jam sekolah; sesi kelas tetap 07.00), durasi 60 menit, hari = hari dari tanggal mulai, tanggal mulai = tanggal yang sedang dipilih.
 - Judul rutin wajib, maksimal 60 karakter. `location` rutin divalidasi maksimal 40 karakter seperti ruang sesi kelas (belum ada kolomnya di form F5).
 - Grid Minggu tetap khusus kelas dan minggu berjalan; rutin tampil di tampilan Hari dan daftar Rutin.
 - `/jadwal` selalu dibuka di Minggu; Hari dimulai dari hari ini, pilihan tidak disimpan. Navigasi Hari hanya ‹ / › dan "Hari ini" (lihat §10 #9).

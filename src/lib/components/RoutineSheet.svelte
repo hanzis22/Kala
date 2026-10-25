@@ -54,7 +54,8 @@
   } = $props();
 
   const t = copy.routine;
-  const DEFAULT_START = '07:00';
+  // Rutin = kegiatan di luar jam sekolah (PRD §F5), jadi bawaannya sore; sesi kelas tetap 07.00.
+  const DEFAULT_START = '16:00';
   const DEFAULT_DURATION = 60;
   const FREQS = ['daily', 'weekly', 'monthly'] as const;
   type Freq = (typeof FREQS)[number];
