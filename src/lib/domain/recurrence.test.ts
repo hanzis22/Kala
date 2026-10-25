@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildRule,
+  clearOverrideOn,
   describeRule,
+  isFirstOccurrence,
   isSupportedRoutine,
   isValidDateRange,
-  parseRule,
+  moveOn,
   occurrencesBetween,
   occursOn,
+  parseRule,
+  restoreOn,
+  skipOn,
+  skippedBetween,
+  splitSeries,
+  truncateSeries,
   validateTimeSlot,
   weekdayOf,
   weeklyDays,
@@ -14,6 +22,7 @@ import {
   type RecurrenceInput,
   type RuleSpec
 } from './recurrence';
+import type { Routine } from './types';
 
 // Minggu acuan: Senin 19 Okt 2026 – Minggu 25 Okt 2026.
 function routine(patch: Partial<RecurrenceInput> = {}): RecurrenceInput {
@@ -453,5 +462,265 @@ describe('zona waktu perangkat', () => {
     } finally {
       process.env.TZ = previous;
     }
+  });
+});
+
+// Edit per tanggal dan split seri (PRD §F5.3–4). Minggu acuan: Senin 19 Okt 2026.
+const NOW = '2026-10-19T03:00:00.000Z';
+const LATER = '2026-10-20T03:00:00.000Z';
+
+function les(patch: Partial<Routine> = {}): Routine {
+  return {
+    id: 'les',
+    kind: 'routine',
+    title: 'Les',
+    subjectId: null,
+    startTime: '16:00',
+    durationMin: 90,
+    rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU',
+    dtstart: '2026-10-19',
+    until: null,
+    exdates: [],
+    overrides: {},
+    location: null,
+    createdAt: NOW,
+    updatedAt: NOW,
+    deletedAt: null,
+    ...patch
+  };
+}
+
+const seriesDates = (r: Routine, from: string, to: string) =>
+  occurrencesBetween(r, from, to).map((o) => o.date);
+
+describe('skippedBetween', () => {
+  it('hanya exdate yang tanpa exdate akan menjadi kejadian', () => {
+    const r = les({ exdates: ['2026-11-03', '2026-11-04', '2026-10-27'] });
+    expect(skippedBetween(r, '2026-10-19', '2026-11-30')).toEqual(['2026-11-03']);
+    expect(skippedBetween(les(), '2026-10-19', '2026-11-30')).toEqual([]);
+  });
+
+  it('menghormati dtstart dan until', () => {
+    const r = les({ exdates: ['2026-11-03'], until: '2026-11-02' });
+    expect(skippedBetween(r, '2026-10-19', '2026-11-30')).toEqual([]);
+  });
+});
+
+describe('skipOn / restoreOn', () => {
+  it('lewati menambah exdate (urut) dan memperbarui updatedAt', () => {
+    const r = skipOn(les({ exdates: ['2026-11-17'] }), '2026-11-03', LATER);
+    expect(r.exdates).toEqual(['2026-11-03', '2026-11-17']);
+    expect(r.updatedAt).toBe(LATER);
+    expect(occursOn(r, '2026-11-03')).toBe(false);
+  });
+
+  it('lewati tanggal ber-override membuang override; kembalikan → jam induk', () => {
+    const moved = les({ overrides: { '2026-11-03': { startTime: '18:00' } } });
+    const skipped = skipOn(moved, '2026-11-03', LATER);
+    expect(skipped.overrides).toEqual({});
+    const restored = restoreOn(skipped, '2026-11-03', LATER);
+    expect(restored.exdates).toEqual([]);
+    expect(occurrencesBetween(restored, '2026-11-03', '2026-11-03')[0]).toMatchObject({
+      startTime: '16:00',
+      overridden: false
+    });
+  });
+
+  it('menolak tanggal yang bukan kejadian atau tidak sedang dilewati', () => {
+    expect(() => skipOn(les(), '2026-10-27', LATER)).toThrow(RangeError);
+    expect(() => skipOn(les({ exdates: ['2026-11-03'] }), '2026-11-03', LATER)).toThrow(RangeError);
+    expect(() => restoreOn(les(), '2026-11-03', LATER)).toThrow(RangeError);
+    expect(() => restoreOn(les({ exdates: ['2026-10-27'] }), '2026-10-27', LATER)).toThrow(RangeError);
+  });
+
+  it('tidak mengubah objek asal', () => {
+    const r = les();
+    skipOn(r, '2026-11-03', LATER);
+    expect(r.exdates).toEqual([]);
+  });
+});
+
+describe('moveOn / clearOverrideOn', () => {
+  it('pindah jam satu tanggal', () => {
+    const r = moveOn(les(), '2026-11-17', { startTime: '18:00', durationMin: 90 }, LATER);
+    expect(r.overrides).toEqual({ '2026-11-17': { startTime: '18:00', durationMin: 90 } });
+    expect(r.updatedAt).toBe(LATER);
+    expect(occurrencesBetween(r, '2026-11-17', '2026-11-17')[0]).toMatchObject({
+      start: 1080,
+      overridden: true
+    });
+    expect(occurrencesBetween(r, '2026-11-03', '2026-11-03')[0]).toMatchObject({
+      start: 960,
+      overridden: false
+    });
+  });
+
+  it('pindah ke jam dan durasi induk = hapus override', () => {
+    const moved = les({ overrides: { '2026-11-17': { startTime: '18:00', durationMin: 60 } } });
+    const back = moveOn(moved, '2026-11-17', { startTime: '16:00', durationMin: 90 }, LATER);
+    expect(back).toEqual(clearOverrideOn(moved, '2026-11-17', LATER));
+    expect(back.overrides).toEqual({});
+    expect(occurrencesBetween(back, '2026-11-17', '2026-11-17')[0].overridden).toBe(false);
+  });
+
+  it('durasi sama tapi jam beda tetap override', () => {
+    const r = moveOn(les(), '2026-11-17', { startTime: '17:00', durationMin: 90 }, LATER);
+    expect(occurrencesBetween(r, '2026-11-17', '2026-11-17')[0].overridden).toBe(true);
+  });
+
+  it('menolak slot tidak valid dan tanggal bukan kejadian', () => {
+    expect(() => moveOn(les(), '2026-11-17', { startTime: '23:30', durationMin: 60 }, LATER)).toThrow(
+      RangeError
+    );
+    expect(() => moveOn(les(), '2026-11-17', { startTime: '18:00', durationMin: 4 }, LATER)).toThrow(
+      RangeError
+    );
+    expect(() => moveOn(les(), '2026-11-10', { startTime: '18:00', durationMin: 90 }, LATER)).toThrow(
+      RangeError
+    );
+    expect(() => clearOverrideOn(les(), '2026-11-10', LATER)).toThrow(RangeError);
+  });
+});
+
+describe('isFirstOccurrence', () => {
+  it('dtstart, atau tidak ada kejadian sebelum tanggal itu', () => {
+    expect(isFirstOccurrence(les(), '2026-10-19')).toBe(true);
+    expect(isFirstOccurrence(les(), '2026-10-20')).toBe(true);
+    expect(isFirstOccurrence(les(), '2026-11-03')).toBe(false);
+  });
+
+  it('kejadian yang dilewati tetap dihitung', () => {
+    expect(isFirstOccurrence(les({ exdates: ['2026-10-20'] }), '2026-11-03')).toBe(false);
+  });
+});
+
+describe('splitSeries', () => {
+  it('tengah seri: seri lama berakhir date−1, seri baru mulai date dengan patch', () => {
+    const { old, next } = splitSeries(les(), '2026-12-01', { startTime: '17:00' }, 'les2', LATER);
+    expect(old).toMatchObject({ id: 'les', until: '2026-11-30', startTime: '16:00', updatedAt: LATER });
+    expect(old.createdAt).toBe(NOW);
+    expect(next).toMatchObject({
+      id: 'les2',
+      dtstart: '2026-12-01',
+      until: null,
+      startTime: '17:00',
+      title: 'Les',
+      createdAt: LATER,
+      updatedAt: LATER,
+      deletedAt: null
+    });
+    expect(seriesDates(old, '2026-10-19', '2026-12-31')).toEqual(['2026-10-20', '2026-11-03', '2026-11-17']);
+    expect(seriesDates(next!, '2026-10-19', '2026-12-31')).toEqual([
+      '2026-12-01',
+      '2026-12-15',
+      '2026-12-29'
+    ]);
+  });
+
+  it('exdates/overrides dibagi di titik tanggal; override tepat di date dibuang', () => {
+    const r = les({
+      exdates: ['2026-11-03', '2026-12-15'],
+      overrides: {
+        '2026-11-17': { startTime: '18:00' },
+        '2026-12-01': { startTime: '19:00' },
+        '2026-12-29': { durationMin: 60 }
+      }
+    });
+    const { old, next } = splitSeries(r, '2026-12-01', { startTime: '17:00' }, 'les2', LATER);
+    expect(old.exdates).toEqual(['2026-11-03']);
+    expect(old.overrides).toEqual({ '2026-11-17': { startTime: '18:00' } });
+    expect(next!.exdates).toEqual(['2026-12-15']);
+    expect(next!.overrides).toEqual({ '2026-12-29': { durationMin: 60 } });
+  });
+
+  it('until diwarisi, atau diganti patch (termasuk dikosongkan)', () => {
+    const r = les({ until: '2027-06-30' });
+    expect(splitSeries(r, '2026-12-01', {}, 'n', LATER).next!.until).toBe('2027-06-30');
+    expect(splitSeries(r, '2026-12-01', { until: '2027-01-31' }, 'n', LATER).next!.until).toBe('2027-01-31');
+    expect(splitSeries(r, '2026-12-01', { until: null }, 'n', LATER).next!.until).toBeNull();
+  });
+
+  it('di dtstart: seluruh seri diubah, tanpa seri baru', () => {
+    const r = les({ rrule: 'FREQ=WEEKLY;BYDAY=MO', overrides: { '2026-11-02': { startTime: '18:00' } } });
+    const { old, next } = splitSeries(r, '2026-10-19', { title: 'Les privat' }, 'n', LATER);
+    expect(next).toBeNull();
+    expect(old).toMatchObject({ id: 'les', title: 'Les privat', dtstart: '2026-10-19', until: null });
+    expect(old.overrides).toEqual({ '2026-11-02': { startTime: '18:00' } });
+  });
+
+  it('di kejadian pertama (dtstart bukan kejadian): seri penuh, dtstart digeser, patch diterapkan', () => {
+    const r = les({ kind: 'class', title: '', subjectId: 's1', rrule: 'FREQ=WEEKLY;BYDAY=TU,TH' });
+    const { old, next } = splitSeries(r, '2026-10-20', { startTime: '09:00' }, 'n', LATER);
+    expect(next).toBeNull();
+    expect(old).toMatchObject({ id: 'les', dtstart: '2026-10-20', startTime: '09:00', updatedAt: LATER });
+  });
+
+  it('di kejadian pertama dengan patch rrule: tidak ada kejadian sebelum tanggal itu', () => {
+    const r = les({ rrule: 'FREQ=WEEKLY;BYDAY=TU,TH' });
+    const { old } = splitSeries(r, '2026-10-20', { rrule: 'FREQ=WEEKLY;BYDAY=MO' }, 'n', LATER);
+    expect(seriesDates(old, '2026-10-01', '2026-11-03')).toEqual(['2026-10-26', '2026-11-02']);
+  });
+
+  it('fase INTERVAL=2 tetap setelah dtstart digeser ke kejadian pertama', () => {
+    const r = les({ rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH' });
+    const { old } = splitSeries(r, '2026-10-20', { title: 'Les baru' }, 'n', LATER);
+    expect(seriesDates(old, '2026-10-20', '2027-01-31')).toEqual(seriesDates(r, '2026-10-20', '2027-01-31'));
+  });
+
+  it('kejadian sebelum date semuanya dilewati: tetap split normal', () => {
+    const r = les({ exdates: ['2026-10-20'] });
+    const { old, next } = splitSeries(r, '2026-11-03', { startTime: '17:00' }, 'n', LATER);
+    expect(old.until).toBe('2026-11-02');
+    expect(old.exdates).toEqual(['2026-10-20']);
+    expect(next).toMatchObject({ id: 'n', dtstart: '2026-11-03' });
+  });
+
+  it('fase INTERVAL=2 tetap di seri baru', () => {
+    const r = les({ rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,WE', dtstart: '2026-10-21' });
+    const { next } = splitSeries(r, '2026-11-17', {}, 'n', LATER);
+    expect(seriesDates(next!, '2026-11-17', '2026-12-31')).toEqual(
+      seriesDates(r, '2026-11-17', '2026-12-31')
+    );
+  });
+
+  it('menolak: bukan kejadian, dilewati, kegiatan sekali, rrule buruk, slot buruk, until < date', () => {
+    expect(() => splitSeries(les(), '2026-10-27', {}, 'n', LATER)).toThrow(RangeError);
+    expect(() => splitSeries(les({ exdates: ['2026-11-03'] }), '2026-11-03', {}, 'n', LATER)).toThrow(
+      RangeError
+    );
+    expect(() => splitSeries(les({ kind: 'event', rrule: null }), '2026-10-19', {}, 'n', LATER)).toThrow(
+      RangeError
+    );
+    expect(() => splitSeries(les(), '2026-11-03', { rrule: 'FREQ=DAILY;COUNT=3' }, 'n', LATER)).toThrow(
+      RangeError
+    );
+    expect(() => splitSeries(les(), '2026-11-03', { rrule: null }, 'n', LATER)).toThrow(RangeError);
+    expect(() => splitSeries(les(), '2026-11-03', { startTime: '23:00' }, 'n', LATER)).toThrow(RangeError);
+    expect(() => splitSeries(les(), '2026-11-03', { until: '2026-11-02' }, 'n', LATER)).toThrow(RangeError);
+  });
+});
+
+describe('truncateSeries', () => {
+  it('until = date−1, exdates/overrides ≥ date dibuang', () => {
+    const r = les({
+      exdates: ['2026-11-03', '2026-12-15'],
+      overrides: { '2026-12-29': { startTime: '18:00' } }
+    });
+    const t = truncateSeries(r, '2026-12-01', LATER);
+    expect(t).toMatchObject({
+      until: '2026-11-30',
+      exdates: ['2026-11-03'],
+      overrides: {},
+      updatedAt: LATER
+    });
+  });
+
+  it('di dtstart atau kejadian pertama → null (hapus seri)', () => {
+    expect(truncateSeries(les({ rrule: 'FREQ=WEEKLY;BYDAY=MO' }), '2026-10-19', LATER)).toBeNull();
+    expect(truncateSeries(les(), '2026-10-20', LATER)).toBeNull();
+  });
+
+  it('menolak tanggal yang bukan kejadian', () => {
+    expect(() => truncateSeries(les(), '2026-10-27', LATER)).toThrow(RangeError);
   });
 });

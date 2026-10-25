@@ -16,7 +16,7 @@
 import { RRule, type Options } from 'rrule';
 import { copy } from '../copy';
 import { dayNumber, isValidLocalDate, isValidLocalTime, MINUTES_PER_DAY, toMinutes } from './dates';
-import type { Id, LocalDate, LocalTime, Minutes, Routine } from './types';
+import type { Id, IsoDateTime, LocalDate, LocalTime, Minutes, Routine } from './types';
 
 export type Weekday = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
 /** Urutan RFC 5545 (Senin = 0), sama dengan indeks hari di rrule. */
@@ -317,4 +317,170 @@ export function isValidDateRange(dtstart: LocalDate, until: LocalDate | null): b
   if (!isValidLocalDate(dtstart)) return false;
   if (until === null) return true;
   return isValidLocalDate(until) && dayNumber(until) >= dayNumber(dtstart);
+}
+
+// ---------- Edit per tanggal dan split seri (PRD §F5.3–4) ----------
+
+const prevDay = (date: LocalDate) => fromDayNumber(dayNumber(date) - 1);
+
+function assertOccurrence(routine: RecurrenceInput, date: LocalDate): void {
+  if (!occursOn(routine, date)) throw new RangeError(`${date} bukan kejadian rutin ${routine.id}`);
+}
+
+function withoutOverride(overrides: Routine['overrides'], date: LocalDate): Routine['overrides'] {
+  const rest = { ...overrides };
+  delete rest[date];
+  return rest;
+}
+
+function pickDates<T>(
+  record: Record<LocalDate, T>,
+  keep: (date: LocalDate) => boolean
+): Record<LocalDate, T> {
+  return Object.fromEntries(Object.entries(record).filter(([date]) => keep(date)));
+}
+
+/**
+ * true jika tidak ada kejadian sebelum `date` di seri ini. Tanggal yang dilewati (exdates) tetap dihitung
+ * sebagai kejadian. Dipakai agar edit/hapus "mulai tanggal ini" di kejadian pertama mengubah seri penuh,
+ * bukan menyisakan seri lama tanpa kejadian (dtstart sering bukan kejadian, misal Senin untuk pola Selasa).
+ */
+export function isFirstOccurrence(routine: RecurrenceInput, date: LocalDate): boolean {
+  if (date === routine.dtstart || routine.rrule === null) return true;
+  if (dayNumber(date) < dayNumber(routine.dtstart)) return true;
+  return compileRule(routine).before(new Date(dayNumber(date) * DAY_MS), false) === null;
+}
+
+/** Tanggal di `exdates` dalam [from, to] yang tanpa exdate akan menjadi kejadian (baris "Dilewati"). */
+export function skippedBetween(routine: RecurrenceInput, from: LocalDate, to: LocalDate): LocalDate[] {
+  if (routine.exdates.length === 0) return [];
+  const skipped = new Set(routine.exdates);
+  return occurrencesBetween({ ...routine, exdates: [] }, from, to)
+    .map((o) => o.date)
+    .filter((date) => skipped.has(date));
+}
+
+/** Lewati satu tanggal: tambah exdate dan buang override tanggal itu. */
+export function skipOn(routine: Routine, date: LocalDate, now: IsoDateTime): Routine {
+  assertOccurrence(routine, date);
+  return {
+    ...routine,
+    exdates: [...routine.exdates, date].sort(),
+    overrides: withoutOverride(routine.overrides, date),
+    updatedAt: now
+  };
+}
+
+/** Kembalikan tanggal yang dilewati. Override sudah dibuang saat dilewati, jadi kejadian kembali ke jam induk. */
+export function restoreOn(routine: Routine, date: LocalDate, now: IsoDateTime): Routine {
+  const exdates = routine.exdates.filter((d) => d !== date);
+  if (exdates.length === routine.exdates.length) throw new RangeError(`${date} tidak sedang dilewati`);
+  const next = { ...routine, exdates, updatedAt: now };
+  assertOccurrence(next, date);
+  return next;
+}
+
+/** Hapus override satu tanggal; kejadian kembali ke jam induk. */
+export function clearOverrideOn(routine: Routine, date: LocalDate, now: IsoDateTime): Routine {
+  assertOccurrence(routine, date);
+  return { ...routine, overrides: withoutOverride(routine.overrides, date), updatedAt: now };
+}
+
+/**
+ * Pindah jam/durasi satu tanggal. Slot wajib valid (RangeError jika tidak). Jika jam dan durasi sama
+ * dengan induk, hasilnya identik dengan clearOverrideOn (tanpa override, tanpa pill "Jam diubah").
+ */
+export function moveOn(
+  routine: Routine,
+  date: LocalDate,
+  slot: { startTime: LocalTime; durationMin: number },
+  now: IsoDateTime
+): Routine {
+  assertOccurrence(routine, date);
+  const error = validateTimeSlot(slot.startTime, slot.durationMin);
+  if (error) throw new RangeError(`Slot tidak valid (${error})`);
+  if (slot.startTime === routine.startTime && slot.durationMin === routine.durationMin) {
+    return clearOverrideOn(routine, date, now);
+  }
+  return {
+    ...routine,
+    overrides: { ...routine.overrides, [date]: { startTime: slot.startTime, durationMin: slot.durationMin } },
+    updatedAt: now
+  };
+}
+
+export type SeriesPatch = Partial<
+  Pick<Routine, 'title' | 'subjectId' | 'startTime' | 'durationMin' | 'rrule' | 'location' | 'until'>
+>;
+
+/**
+ * "Tanggal ini dan seterusnya". Seri lama berakhir di date−1 dan menyimpan exdates/overrides < date;
+ * seri baru (id = newId) mulai di date dengan patch, membawa exdates/overrides ≥ date kecuali override
+ * tepat di date (user baru saja menetapkan jam untuk tanggal itu). Di kejadian pertama seri
+ * (isFirstOccurrence), seluruh seri diubah, dtstart digeser ke date (agar patch rrule tidak memunculkan
+ * kejadian sebelum date), dan next = null. Ditolak (RangeError): kegiatan sekali, date bukan kejadian, rrule patch di luar
+ * subset, slot tidak valid, until < date.
+ */
+export function splitSeries(
+  routine: Routine,
+  date: LocalDate,
+  patch: SeriesPatch,
+  newId: Id,
+  now: IsoDateTime
+): { old: Routine; next: Routine | null } {
+  if (routine.rrule === null) throw new RangeError('Kegiatan sekali tidak punya seri');
+  assertOccurrence(routine, date);
+  if (patch.rrule !== undefined && (patch.rrule === null || parseRule(patch.rrule) === null)) {
+    throw new RangeError(`Pola RRULE tidak didukung: ${patch.rrule}`);
+  }
+  const slot = validateTimeSlot(
+    patch.startTime ?? routine.startTime,
+    patch.durationMin ?? routine.durationMin
+  );
+  if (slot) throw new RangeError(`Slot tidak valid (${slot})`);
+  const until = patch.until !== undefined ? patch.until : routine.until;
+  if (until !== null && (!isValidLocalDate(until) || until < date)) {
+    throw new RangeError(`Tanggal akhir sebelum ${date}`);
+  }
+
+  if (isFirstOccurrence(routine, date)) {
+    return { old: { ...routine, ...patch, dtstart: date, until, updatedAt: now }, next: null };
+  }
+
+  const old: Routine = {
+    ...routine,
+    until: prevDay(date),
+    exdates: routine.exdates.filter((d) => d < date),
+    overrides: pickDates(routine.overrides, (d) => d < date),
+    updatedAt: now
+  };
+  const next: Routine = {
+    ...routine,
+    ...patch,
+    id: newId,
+    dtstart: date,
+    until,
+    exdates: routine.exdates.filter((d) => d >= date),
+    overrides: pickDates(routine.overrides, (d) => d > date),
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null
+  };
+  return { old, next };
+}
+
+/**
+ * "Hapus mulai tanggal ini": until = date−1, exdates/overrides ≥ date dibuang.
+ * null di kejadian pertama seri (pemanggil menghapus seluruh seri).
+ */
+export function truncateSeries(routine: Routine, date: LocalDate, now: IsoDateTime): Routine | null {
+  assertOccurrence(routine, date);
+  if (isFirstOccurrence(routine, date)) return null;
+  return {
+    ...routine,
+    until: prevDay(date),
+    exdates: routine.exdates.filter((d) => d < date),
+    overrides: pickDates(routine.overrides, (d) => d < date),
+    updatedAt: now
+  };
 }
