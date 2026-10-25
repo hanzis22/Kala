@@ -191,12 +191,15 @@ test('sesi bentrok tampil sebagai satu blok selebar kolom dan bisa dipilih', asy
   const block = await clash.boundingBox();
   expect(block?.width).toBeGreaterThanOrEqual((column?.width ?? 0) - 2);
 
-  // Pilih sesi → sheet ubah berisi data sesi itu.
+  // Pilih sesi → sheet pilihan edit → "Tanggal ini dan seterusnya" → sheet ubah berisi data sesi itu.
   await clash.click();
   const picker = page.getByRole('dialog', { name: 'Pilih sesi' });
   await expect(picker).toContainText('Jam sesi ini bertumpuk di hari Kamis');
   await picker.getByRole('button', { name: 'Ubah Bahasa Indonesia, 10.30–11.15' }).click();
   await expect(picker).toBeHidden();
+  const choice = page.getByRole('dialog', { name: 'Bahasa Indonesia · Kamis, 22 Okt' });
+  await choice.getByRole('button', { name: 'Tanggal ini dan seterusnya' }).click();
+  await expect(choice).toBeHidden();
   const edit = page.getByRole('dialog', { name: 'Ubah sesi kelas' });
   await expect(edit.getByRole('combobox', { name: 'Mapel' }).locator('option:checked')).toHaveText(
     'Bahasa Indonesia'

@@ -47,6 +47,7 @@
     <div class="-mr-2 flex items-center gap-1">
       <h2
         id="day-heading"
+        data-date={date}
         class="min-w-0 flex-1 truncate text-heading-md font-extrabold text-ink"
         aria-live="polite"
       >
