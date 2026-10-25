@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Jadwal (PRD §F4.3): tampilan Minggu. Tampilan Hari dan daftar Rutin = F5.
+   * Jadwal (PRD §3, §F4.3, §F5): toggle Hari / Minggu (selalu dibuka di Minggu, tidak disimpan).
    * Aksi utama (brand) satu-satunya: FAB "+" untuk menambah sesi kelas.
    */
   import BookOpen from '@lucide/svelte/icons/book-open';
@@ -9,14 +9,20 @@
   import { resolve } from '$app/paths';
   import ClassSessionSheet from '$lib/components/ClassSessionSheet.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import DayView from '$lib/components/DayView.svelte';
+  import OccurrenceSheet, { type OccurrenceTarget } from '$lib/components/OccurrenceSheet.svelte';
+  import RoutineList from '$lib/components/RoutineList.svelte';
+  import RoutineSheet, { type RoutineSheetMode } from '$lib/components/RoutineSheet.svelte';
   import { Button } from '$lib/components/ui/button';
   import * as Sheet from '$lib/components/ui/sheet';
   import { copy } from '$lib/copy';
-  import { deleteRoutine } from '$lib/data/repo/routines';
-  import { weekdayOf, weeklyDays } from '$lib/domain/recurrence';
+  import { deleteRoutine, endFromDate, restoreOccurrence } from '$lib/data/repo/routines';
+  import { dayAgenda, type DayItem } from '$lib/domain/agenda';
+  import { addDays } from '$lib/domain/dates';
+  import { occurrencesBetween, weekdayOf, weeklyDays } from '$lib/domain/recurrence';
   import { buildWeekTimetable, weekStart, type TimetableSlot } from '$lib/domain/timetable';
   import type { LocalDate, Routine } from '$lib/domain/types';
-  import { formatClock, formatDateRange } from '$lib/format';
+  import { formatClock, formatDateRange, formatDayMonth } from '$lib/format';
   import { schedule } from '$lib/stores/schedule.svelte';
   import { settings } from '$lib/stores/settings.svelte';
   import { today } from '$lib/stores/today.svelte';
@@ -34,18 +40,36 @@
   );
   const hasSessions = $derived(timetable.days.some((d) => d.slots.length > 0));
 
+  let view = $state<'week' | 'day'>('week');
+  /** Tanggal tampilan Hari; diisi hari ini setiap kali beralih ke Hari. */
+  let selectedDate = $state<LocalDate>(today.current);
+
+  function showView(next: 'week' | 'day') {
+    if (next === 'day' && view !== 'day') selectedDate = today.current;
+    view = next;
+  }
+
+  const dayItems = $derived(
+    dayAgenda(selectedDate, {
+      routines: [...schedule.classRoutines, ...schedule.routines, ...schedule.events],
+      subjects: schedule.subjects
+    })
+  );
+
+  async function restore(item: DayItem) {
+    await restoreOccurrence(item.routine.id, item.date, new Date().toISOString());
+  }
+
+  // ---------- Sesi kelas ----------
+
   let sheetOpen = $state(false);
   let editing = $state<Routine | null>(null);
-  let confirmOpen = $state(false);
-  let toDelete = $state<Routine | null>(null);
+  /** Diisi = ClassSessionSheet dalam mode "Tanggal ini dan seterusnya". */
+  let classFromDate = $state<LocalDate | undefined>(undefined);
 
   function addSession() {
     editing = null;
-    sheetOpen = true;
-  }
-
-  function editSession(routine: Routine) {
-    editing = routine;
+    classFromDate = undefined;
     sheetOpen = true;
   }
 
@@ -68,26 +92,104 @@
 
   function choose(routine: Routine) {
     pickOpen = false;
-    editSession(routine);
+    if (picking) openOccurrence(routine, picking.date);
   }
 
   const endClock = (end: number) => (end === 1440 ? '24.00' : formatClock(end));
 
-  function askDelete(routine: Routine) {
-    toDelete = routine;
+  // ---------- Pilihan edit satu kejadian ----------
+
+  let occurrenceOpen = $state(false);
+  let occurrenceTarget = $state<OccurrenceTarget | null>(null);
+
+  const nameOf = (routine: Routine) =>
+    routine.kind === 'class' ? (schedule.subjectById(routine.subjectId)?.name ?? '') : routine.title;
+
+  function openOccurrence(routine: Routine, date: LocalDate) {
+    const occurrence = occurrencesBetween(routine, date, date)[0];
+    if (!occurrence) return;
+    occurrenceTarget = {
+      routine,
+      name: nameOf(routine),
+      date,
+      startTime: occurrence.startTime,
+      durationMin: occurrence.durationMin,
+      overridden: occurrence.overridden
+    };
+    occurrenceOpen = true;
+  }
+
+  function editFrom(routine: Routine, date: LocalDate) {
+    if (routine.kind === 'class') {
+      editing = routine;
+      classFromDate = date;
+      sheetOpen = true;
+    } else {
+      routineMode = { kind: 'from', routine, date };
+      routineOpen = true;
+    }
+  }
+
+  // ---------- Rutin ----------
+
+  let routineOpen = $state(false);
+  let routineMode = $state<RoutineSheetMode>({ kind: 'add', dtstart: today.current });
+
+  function addRoutine() {
+    routineMode = { kind: 'add', dtstart: view === 'day' ? selectedDate : today.current };
+    routineOpen = true;
+  }
+
+  function editRoutine(routine: Routine) {
+    routineMode = { kind: 'edit', routine };
+    routineOpen = true;
+  }
+
+  // ---------- Konfirmasi hapus ----------
+
+  let confirmOpen = $state(false);
+  let confirm = $state<{ title: string; body: string; action: string; run: () => Promise<unknown> } | null>(
+    null
+  );
+
+  function ask(next: NonNullable<typeof confirm>) {
+    confirm = next;
     confirmOpen = true;
   }
 
-  const deleteBody = $derived.by(() => {
-    if (!toDelete) return '';
-    const name = schedule.subjectById(toDelete.subjectId)?.name ?? '';
-    const days = toDelete.rrule ? weeklyDays(toDelete.rrule).map((d) => copy.weekdays.long[d]) : [];
-    return copy.session.confirmBody(name, days.join(', '));
-  });
+  const nowIso = () => new Date().toISOString();
 
-  async function confirmDelete() {
-    if (toDelete) await deleteRoutine(toDelete.id, new Date().toISOString());
-    toDelete = null;
+  function askDeleteSession(routine: Routine) {
+    const days = routine.rrule ? weeklyDays(routine.rrule).map((d) => copy.weekdays.long[d]) : [];
+    ask({
+      title: copy.session.confirmTitle,
+      body: copy.session.confirmBody(nameOf(routine), days.join(', ')),
+      action: copy.session.confirmAction,
+      run: () => deleteRoutine(routine.id, nowIso())
+    });
+  }
+
+  function askDeleteRoutine(routine: Routine, name = routine.title) {
+    ask({
+      title: copy.routine.confirmTitle(name),
+      body: copy.routine.confirmBody,
+      action: copy.routine.confirmAction,
+      run: () => deleteRoutine(routine.id, nowIso())
+    });
+  }
+
+  function askEndFrom(routine: Routine, date: LocalDate) {
+    const day = formatDayMonth(date);
+    ask({
+      title: copy.routine.confirmFromTitle(day),
+      body: copy.routine.confirmFromBody(nameOf(routine), day),
+      action: copy.routine.confirmAction,
+      run: () => endFromDate(routine.id, date, nowIso())
+    });
+  }
+
+  async function runConfirm() {
+    await confirm?.run();
   }
 </script>
 
@@ -106,7 +208,38 @@
     </a>
   </header>
 
-  {#if schedule.loaded && schedule.subjects.length === 0}
+  <div
+    role="group"
+    aria-label={t.viewGroupLabel}
+    class="grid grid-cols-2 gap-1 rounded-lg border border-line bg-card p-1"
+  >
+    {#each [['day', t.viewDay], ['week', t.viewWeek]] as const as [value, label] (value)}
+      <button
+        type="button"
+        aria-pressed={view === value}
+        class={[
+          'min-h-11 rounded-md text-label font-extrabold',
+          view === value ? 'bg-sunken text-ink' : 'text-muted hover:bg-sunken'
+        ]}
+        onclick={() => showView(value)}>{label}</button
+      >
+    {/each}
+  </div>
+
+  {#if view === 'day'}
+    {#if schedule.loaded}
+      <DayView
+        date={selectedDate}
+        today={today.current}
+        items={dayItems}
+        onprev={() => (selectedDate = addDays(selectedDate, -1))}
+        onnext={() => (selectedDate = addDays(selectedDate, 1))}
+        ontoday={() => (selectedDate = today.current)}
+        onselect={(item) => openOccurrence(item.routine, item.date)}
+        onrestore={restore}
+      />
+    {/if}
+  {:else if schedule.loaded && schedule.subjects.length === 0}
     <section class="flex flex-col gap-4 rounded-xl border border-line bg-card p-5">
       <div class="flex flex-col gap-1">
         <h2 class="text-heading-md font-extrabold text-ink">{t.noSubjectsTitle}</h2>
@@ -131,10 +264,22 @@
         today={today.current}
         routines={schedule.classRoutines}
         subjects={schedule.subjects}
-        onselect={editSession}
+        onselect={openOccurrence}
         onpick={pickSession}
       />
     </section>
+  {/if}
+
+  {#if schedule.loaded}
+    <RoutineList
+      routines={schedule.routines}
+      unsupported={schedule.unsupported}
+      subjects={schedule.subjects}
+      today={today.current}
+      onadd={addRoutine}
+      onedit={editRoutine}
+      ondelete={askDeleteRoutine}
+    />
   {/if}
   <!-- Ruang setinggi FAB (60 px + jarak) agar jam terakhir grid bisa digulir ke atas FAB. -->
   <div class="h-[76px] shrink-0" aria-hidden="true"></div>
@@ -159,7 +304,19 @@
   dtstart={weekStart(today.current, weekStartsOn)}
   {weekStartsOn}
   {showSunday}
-  ondelete={askDelete}
+  fromDate={classFromDate}
+  ondelete={askDeleteSession}
+  onend={askEndFrom}
+/>
+
+<OccurrenceSheet bind:open={occurrenceOpen} target={occurrenceTarget} onfromdate={editFrom} />
+
+<RoutineSheet
+  bind:open={routineOpen}
+  mode={routineMode}
+  {weekStartsOn}
+  ondelete={(routine) => askDeleteRoutine(routine)}
+  onend={askEndFrom}
 />
 
 <Sheet.Root bind:open={pickOpen}>
@@ -202,8 +359,8 @@
 
 <ConfirmDialog
   bind:open={confirmOpen}
-  title={copy.session.confirmTitle}
-  body={deleteBody}
-  action={copy.session.confirmAction}
-  onconfirm={confirmDelete}
+  title={confirm?.title ?? ''}
+  body={confirm?.body ?? ''}
+  action={confirm?.action ?? ''}
+  onconfirm={runConfirm}
 />

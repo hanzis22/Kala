@@ -1,8 +1,11 @@
 /**
- * Logika agenda (PRD §6). Grid timetable F4 memakai `groupOverlaps`; `assignLanes` disiapkan
- * untuk tampilan Hari (F2/F5). `agendaFor` dan `markConflicts` menyusul di F2.
+ * Logika agenda (PRD §6). Grid timetable F4 memakai `groupOverlaps`; tampilan Hari F5 memakai
+ * `dayAgenda`; `assignLanes` disiapkan untuk tampilan bertumpuk. `agendaFor` dan `markConflicts`
+ * menyusul di F2 dan memanggil `dayAgenda` untuk memilih kejadian kelas/rutin/kegiatan.
  */
-import type { Minutes } from './types';
+import { toMinutes } from './dates';
+import { isSupportedRoutine, occurrencesBetween, skippedBetween } from './recurrence';
+import type { LocalDate, LocalTime, Minutes, Routine, Subject } from './types';
 
 export interface Span {
   start: Minutes;
@@ -72,4 +75,57 @@ export function assignLanes<T extends Span>(items: readonly T[]): WithLane<T>[] 
   }
   flush();
   return result;
+}
+
+export interface DayItem extends Span {
+  routine: Routine;
+  date: LocalDate;
+  /** Nama mapel untuk kelas, judul rutin untuk yang lain. */
+  title: string;
+  startTime: LocalTime;
+  durationMin: number;
+  /** true jika jam/durasi berasal dari override tanggal ini. */
+  overridden: boolean;
+  /** true untuk kejadian yang dilewati (exdates); jamnya jam induk. */
+  skipped: boolean;
+}
+
+/**
+ * Kejadian kelas, rutin, dan kegiatan di satu tanggal, urut mulai lalu selesai, termasuk baris
+ * yang dilewati. Rutin dengan pola tak dikenal dan kelas tanpa mapel aktif tidak pernah masuk.
+ * `routines` sudah disaring dari yang dihapus oleh pemanggil.
+ */
+export function dayAgenda(
+  date: LocalDate,
+  sources: { routines: readonly Routine[]; subjects: readonly Pick<Subject, 'id' | 'name'>[] }
+): DayItem[] {
+  const subjectNames = new Map(sources.subjects.map((s) => [s.id, s.name]));
+  const items: DayItem[] = [];
+  for (const routine of sources.routines) {
+    if (!isSupportedRoutine(routine)) continue;
+    let title = routine.title;
+    if (routine.kind === 'class') {
+      const name = routine.subjectId === null ? undefined : subjectNames.get(routine.subjectId);
+      if (name === undefined) continue;
+      title = name;
+    }
+    for (const o of occurrencesBetween(routine, date, date)) {
+      items.push({ routine, title, ...o, skipped: false });
+    }
+    for (const skippedDate of skippedBetween(routine, date, date)) {
+      const start = toMinutes(routine.startTime);
+      items.push({
+        routine,
+        date: skippedDate,
+        title,
+        startTime: routine.startTime,
+        durationMin: routine.durationMin,
+        start,
+        end: start + routine.durationMin,
+        overridden: false,
+        skipped: true
+      });
+    }
+  }
+  return items.sort((a, b) => a.start - b.start || a.end - b.end);
 }

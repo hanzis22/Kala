@@ -3,7 +3,7 @@
  * Dikumpulkan di sini agar siap i18n (Paraglide, Fase 3).
  */
 import type { Weekday } from '$lib/domain/recurrence';
-import type { PrayerName } from '$lib/domain/types';
+import type { PrayerName, RoutineKind } from '$lib/domain/types';
 
 export const copy = {
   appName: 'Kala',
@@ -28,6 +28,21 @@ export const copy = {
       SU: 'Minggu'
     }
   } satisfies Record<'short' | 'long', Record<Weekday, string>>,
+
+  /** Kalimat pola rutin (dipakai describeRule di domain). */
+  recurrence: {
+    daily: (n: number) => (n === 1 ? 'Setiap hari' : `Setiap ${n} hari`),
+    weekly: (n: number) => (n === 1 ? 'Setiap minggu' : `Setiap ${n} minggu`),
+    monthly: (n: number) => (n === 1 ? 'Bulanan' : `Setiap ${n} bulan`),
+    monthday: (day: number) => `tanggal ${day}`,
+    lastDay: 'hari terakhir',
+    /** nth: 1–5, atau -1 = terakhir. */
+    ordinal: (nth: number) =>
+      nth === -1 ? 'terakhir' : (['pertama', 'kedua', 'ketiga', 'keempat', 'kelima'][nth - 1] ?? `ke-${nth}`),
+    nthWeekday: (day: string, ordinal: string) => `${day} ${ordinal}`,
+    joinList: (items: readonly string[]) =>
+      items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} & ${items[items.length - 1]}`
+  },
 
   nav: {
     label: 'Navigasi utama',
@@ -159,7 +174,21 @@ export const copy = {
       `${n} sesi bentrok, ${day} ${start}–${end}: ${subjects}. Pilih sesi`,
     pickTitle: 'Pilih sesi',
     pickDescription: (day: string) => `Jam sesi ini bertumpuk di hari ${day}. Pilih yang ingin kamu ubah.`,
-    pickItemLabel: (subject: string, start: string, end: string) => `Ubah ${subject}, ${start}–${end}`
+    pickItemLabel: (subject: string, start: string, end: string) => `Ubah ${subject}, ${start}–${end}`,
+    viewGroupLabel: 'Tampilan jadwal',
+    viewDay: 'Hari',
+    viewWeek: 'Minggu',
+    dayToday: 'Hari ini',
+    dayPrev: 'Hari sebelumnya',
+    dayNext: 'Hari berikutnya',
+    dayEmpty: 'Tidak ada kelas, rutin, atau kegiatan di hari ini.',
+    kindTag: { class: 'Kelas', routine: 'Rutin', event: 'Kegiatan' } satisfies Record<RoutineKind, string>,
+    overridden: 'Jam diubah',
+    skipped: 'Dilewati',
+    restore: 'Kembalikan',
+    restoreLabel: (title: string) => `Kembalikan ${title}`,
+    dayItemLabel: (title: string, time: string, overridden: boolean) =>
+      `${title}, ${time}${overridden ? ', jam diubah' : ''}. Ubah`
   },
 
   subjects: {
@@ -222,7 +251,101 @@ export const copy = {
       'duration-range': 'Durasi 5–720 menit.',
       'past-midnight': 'Sesi harus selesai paling lambat pukul 24.00.',
       'location-too-long': 'Ruang maksimal 40 karakter.',
-      'not-found': 'Sesi ini sudah tidak ada.'
+      'not-found': 'Sesi ini sudah tidak ada.',
+      'not-occurrence': 'Tanggal ini bukan jadwal sesi ini.'
+    } as Record<string, string>,
+    fromDescription: (date: string) => `Perubahan berlaku mulai ${date}. Jadwal sebelumnya tetap.`,
+    deleteFrom: 'Hapus mulai tanggal ini'
+  },
+
+  routine: {
+    heading: 'Rutin',
+    add: 'Tambah rutin',
+    empty: 'Belum ada rutin. Tambahkan les, olahraga, atau murajaah yang berulang.',
+    editLabel: (title: string, rule: string) => `Ubah ${title}, ${rule}`,
+    untilLabel: (date: string) => `Sampai ${date}`,
+    fromLabel: (date: string) => `Mulai ${date}`,
+    unsupported: 'Pola ini tidak bisa diubah di Kala',
+    untitled: 'Tanpa judul',
+    deleteLabel: (title: string) => `Hapus ${title}`,
+    sheetAddTitle: 'Tambah rutin',
+    sheetEditTitle: 'Ubah rutin',
+    sheetFromTitle: (date: string) => `Ubah rutin mulai ${date}`,
+    sheetDescription: 'Muncul otomatis sesuai pola yang kamu pilih.',
+    title: 'Judul',
+    titlePlaceholder: 'Misal: Les bahasa Inggris',
+    pattern: 'Pola',
+    freq: { daily: 'Harian', weekly: 'Mingguan', monthly: 'Bulanan' },
+    every: 'Setiap',
+    interval: 'Jarak pengulangan',
+    unit: { daily: 'hari', weekly: 'minggu', monthly: 'bulan' },
+    days: 'Hari',
+    monthly: 'Muncul pada',
+    monthday: 'Tanggal',
+    monthdaySelect: 'Tanggal setiap bulan',
+    nth: 'Hari ke-',
+    nthSelect: 'Urutan hari',
+    nthWeekdaySelect: 'Hari',
+    nthOptions: [
+      [1, 'Pertama'],
+      [2, 'Kedua'],
+      [3, 'Ketiga'],
+      [4, 'Keempat'],
+      [5, 'Kelima'],
+      [-1, 'Terakhir']
+    ] as const,
+    lastDay: 'Hari terakhir bulan',
+    monthdayHint: (day: number) =>
+      `Bulan tanpa tanggal ${day} dilewati. Pilih "Hari terakhir bulan" agar tetap muncul di akhir bulan.`,
+    startTime: 'Jam mulai',
+    duration: 'Durasi (menit)',
+    endsAt: (time: string) => `Selesai pukul ${time}`,
+    dtstart: 'Tanggal mulai',
+    dtstartLocked: 'Perubahan berlaku mulai tanggal ini. Jadwal sebelumnya tetap.',
+    until: 'Tanggal akhir',
+    optional: 'opsional',
+    preview: 'Pratinjau',
+    delete: 'Hapus rutin',
+    deleteFrom: 'Hapus mulai tanggal ini',
+    confirmTitle: (title: string) => `Hapus ${title}?`,
+    confirmBody: 'Seluruh jadwal rutin ini dihapus.',
+    confirmFromTitle: (date: string) => `Hapus mulai ${date}?`,
+    confirmFromBody: (title: string, date: string) =>
+      `${title} tidak muncul lagi mulai ${date}. Jadwal sebelumnya tetap ada.`,
+    confirmAction: 'Ya, hapus',
+    errors: {
+      'title-required': 'Judul rutin wajib diisi.',
+      'title-too-long': 'Judul rutin maksimal 60 karakter.',
+      'days-required': 'Pilih minimal satu hari.',
+      'interval-range': 'Jarak pengulangan 1–99.',
+      'monthday-range': 'Pilih tanggal atau hari dalam bulan.',
+      'invalid-time': 'Jam mulai belum diisi.',
+      'duration-range': 'Durasi 5–720 menit.',
+      'past-midnight': 'Rutin harus selesai paling lambat pukul 24.00.',
+      'location-too-long': 'Tempat maksimal 40 karakter.',
+      'invalid-dtstart': 'Tanggal mulai belum diisi.',
+      'until-before-start': 'Tanggal akhir tidak boleh sebelum tanggal mulai.',
+      'not-found': 'Rutin ini sudah tidak ada.',
+      'not-occurrence': 'Tanggal ini bukan jadwal rutin ini.'
+    } as Record<string, string>
+  },
+
+  occurrence: {
+    title: (name: string, date: string) => `${name} · ${date}`,
+    description: 'Pilih perubahan untuk jadwal ini.',
+    onlyThis: 'Hanya tanggal ini',
+    onlyThisNote: 'Ubah satu tanggal hanya mengganti jam dan durasi.',
+    save: 'Simpan untuk tanggal ini',
+    clear: 'Kembalikan jam semula',
+    skip: 'Lewati tanggal ini',
+    fromThis: 'Tanggal ini dan seterusnya',
+    fromThisNote: 'Ubah pola, hari, atau detail lain mulai tanggal ini.',
+    errors: {
+      'invalid-time': 'Jam mulai belum diisi.',
+      'duration-range': 'Durasi 5–720 menit.',
+      'past-midnight': 'Harus selesai paling lambat pukul 24.00.',
+      'not-found': 'Jadwal ini sudah tidak ada.',
+      'not-occurrence': 'Tanggal ini sudah tidak ada di jadwal.'
     } as Record<string, string>
   },
 

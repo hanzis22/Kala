@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { assignLanes, groupOverlaps } from './agenda';
+import { assignLanes, dayAgenda, groupOverlaps } from './agenda';
+import type { Routine } from './types';
 
 const span = (id: string, start: number, end: number) => ({ id, start, end });
 const lanes = (items: ReturnType<typeof assignLanes<ReturnType<typeof span>>>) =>
@@ -89,5 +90,86 @@ describe('groupOverlaps', () => {
       { id: 'a', start: 420, end: 510 },
       { id: 'b', start: 450, end: 480 }
     ]);
+  });
+});
+
+describe('dayAgenda', () => {
+  const base: Routine = {
+    id: 'mtk',
+    kind: 'class',
+    title: '',
+    subjectId: 's1',
+    startTime: '07:00',
+    durationMin: 90,
+    rrule: 'FREQ=WEEKLY;BYDAY=MO,WE',
+    dtstart: '2026-10-19',
+    until: null,
+    exdates: [],
+    overrides: {},
+    location: 'R. 12',
+    createdAt: '2026-10-19T00:00:00.000Z',
+    updatedAt: '2026-10-19T00:00:00.000Z',
+    deletedAt: null
+  };
+  const subjects = [{ id: 's1', name: 'Matematika' }];
+  const les: Routine = {
+    ...base,
+    id: 'les',
+    kind: 'routine',
+    title: 'Les',
+    subjectId: null,
+    startTime: '16:00',
+    rrule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO',
+    location: null
+  };
+  const rapat: Routine = {
+    ...base,
+    id: 'rapat',
+    kind: 'event',
+    title: 'Rapat OSIS',
+    subjectId: null,
+    startTime: '06:30',
+    durationMin: 30,
+    rrule: null
+  };
+  const summary = (items: ReturnType<typeof dayAgenda>) =>
+    items.map((i) => `${i.startTime} ${i.title}${i.overridden ? ' *' : ''}${i.skipped ? ' (dilewati)' : ''}`);
+
+  it('kelas (judul dari mapel), rutin, dan kegiatan, urut jam mulai', () => {
+    const items = dayAgenda('2026-10-19', { routines: [les, base, rapat], subjects });
+    expect(summary(items)).toEqual(['06:30 Rapat OSIS', '07:00 Matematika', '16:00 Les']);
+    expect(items[1]).toMatchObject({ start: 420, end: 510, date: '2026-10-19', skipped: false });
+    expect(items[1].routine.kind).toBe('class');
+  });
+
+  it('urut mulai lalu selesai', () => {
+    const short = {
+      ...les,
+      id: 'pendek',
+      title: 'Pendek',
+      startTime: '07:00',
+      durationMin: 30,
+      rrule: 'FREQ=DAILY'
+    };
+    expect(summary(dayAgenda('2026-10-19', { routines: [base, short], subjects }))).toEqual([
+      '07:00 Pendek',
+      '07:00 Matematika'
+    ]);
+  });
+
+  it('override dan kejadian yang dilewati', () => {
+    const moved = { ...base, overrides: { '2026-10-19': { startTime: '09:00' } } };
+    const skipped = { ...les, exdates: ['2026-10-19'] };
+    expect(summary(dayAgenda('2026-10-19', { routines: [moved, skipped], subjects }))).toEqual([
+      '09:00 Matematika *',
+      '16:00 Les (dilewati)'
+    ]);
+  });
+
+  it('pola tak dikenal, kelas tanpa mapel aktif, dan hari tanpa kejadian tidak masuk', () => {
+    const weird = { ...les, id: 'weird', rrule: 'FREQ=DAILY;COUNT=3' };
+    const orphan = { ...base, id: 'orphan', subjectId: 'hilang' };
+    expect(dayAgenda('2026-10-19', { routines: [weird, orphan], subjects })).toEqual([]);
+    expect(dayAgenda('2026-10-26', { routines: [les], subjects })).toEqual([]);
   });
 });
