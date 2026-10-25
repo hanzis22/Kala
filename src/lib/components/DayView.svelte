@@ -113,11 +113,13 @@
               {@render body()}
             </button>
           {:else if item.skipped}
-            <div class="flex min-h-[60px] items-center gap-3 py-2.5">
-              <div class="flex min-w-0 flex-1 items-start gap-3 opacity-60">{@render body()}</div>
+            <div class="flex flex-col gap-2 py-2.5">
+              <div class="flex min-w-0 items-start gap-3 opacity-60">{@render body()}</div>
+              <!-- Sejajar kolom judul (92 px kolom jam + 12 px jarak). -->
               <Button
                 variant="outline"
                 size="sm"
+                class="ml-[104px] self-start"
                 aria-label={t.restoreLabel(item.title)}
                 onclick={() => onrestore(item)}>{t.restore}</Button
               >

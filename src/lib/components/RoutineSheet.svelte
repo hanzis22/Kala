@@ -207,8 +207,9 @@
     else if (mode.kind === 'from') onend(mode.routine, mode.date);
   }
 
-  const inputClass =
-    'min-h-11 w-full rounded-md border border-line bg-ground px-4 text-field text-ink placeholder:text-muted';
+  const fieldClass =
+    'min-h-11 rounded-md border border-line bg-ground px-4 text-field text-ink placeholder:text-muted';
+  const inputClass = `${fieldClass} w-full`;
   const segmentClass = (on: boolean) => [
     'min-h-11 rounded-md text-label font-extrabold',
     on ? 'bg-sunken text-ink' : 'text-muted hover:bg-sunken'
@@ -251,7 +252,7 @@
           <input
             type="number"
             inputmode="numeric"
-            class={[inputClass, 'w-20 text-center']}
+            class={[fieldClass, 'w-20 text-center']}
             bind:value={interval}
             min="1"
             max={MAX_INTERVAL}
@@ -296,7 +297,7 @@
             />
             <label for="monthly-monthday" class="text-body text-ink">{t.monthday}</label>
             <select
-              class={[inputClass, 'w-24']}
+              class={[fieldClass, 'w-24']}
               bind:value={monthday}
               aria-label={t.monthdaySelect}
               onfocus={() => (monthlyKind = 'monthday')}
@@ -316,9 +317,9 @@
               bind:group={monthlyKind}
             />
             <label for="monthly-nth" class="text-body text-ink">{t.nth}</label>
-            <div class="flex min-w-0 flex-1 gap-2">
+            <div class="flex min-w-0 basis-full gap-2 pl-8">
               <select
-                class={[inputClass, 'min-w-0 flex-1 px-2']}
+                class={[fieldClass, 'min-w-0 flex-1 px-3']}
                 bind:value={nth}
                 aria-label={t.nthSelect}
                 onfocus={() => (monthlyKind = 'nth')}
@@ -328,7 +329,7 @@
                 {/each}
               </select>
               <select
-                class={[inputClass, 'min-w-0 flex-1 px-2']}
+                class={[fieldClass, 'min-w-0 flex-1 px-3']}
                 bind:value={nthWeekday}
                 aria-label={t.nthWeekdaySelect}
                 onfocus={() => (monthlyKind = 'nth')}
