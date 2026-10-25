@@ -163,6 +163,22 @@ Sebagai pelajar, saya ingin kegiatan berulang (les, olahraga, murajaah) muncul o
 4. Edit rutin menawarkan dua pilihan: "Hanya tanggal ini" atau "Tanggal ini dan seterusnya". Pilihan kedua mengakhiri rutin lama di hari sebelumnya (`until`) dan membuat rutin baru mulai tanggal itu.
 5. Disimpan sebagai string RRULE RFC 5545 (tanpa DTSTART) agar langsung bisa diekspor ke `.ics` di Fase 2.
 
+Keputusan implementasi F5 (25 Okt 2026):
+
+- Subset RRULE tertutup, divalidasi tokenizer sendiri (`parseRule`) dengan allowlist kunci `FREQ`, `INTERVAL`, `BYDAY`, `BYMONTHDAY`: `DAILY`; `WEEKLY` + `BYDAY` (tanpa ordinal); `MONTHLY` + tepat satu `BYMONTHDAY` 1..31 atau −1, atau tepat satu `BYDAY` berordinal +1..+5 atau −1. `INTERVAL` 1–99. Kunci ganda dan kunci lain (`COUNT`, `UNTIL`, `BYSETPOS`, `WKST`, …) ditolak. Opsi RRule disusun dari bentuk terstruktur ini, bukan dari string mentah, dan `WKST` dipatok Senin. String kanonik: `FREQ`, lalu `INTERVAL` (hanya jika > 1), lalu `BYDAY`/`BYMONTHDAY`.
+- Judul rutin wajib, maksimal 60 karakter. `location` rutin divalidasi maksimal 40 karakter seperti ruang sesi kelas (belum ada kolomnya di form F5).
+- Grid Minggu tetap khusus kelas dan minggu berjalan; rutin tampil di tampilan Hari dan daftar Rutin.
+- `/jadwal` selalu dibuka di Minggu; Hari dimulai dari hari ini, pilihan tidak disimpan. Navigasi Hari hanya ‹ / › dan "Hari ini" (lihat §10 #9).
+- Pemilihan kejadian per tanggal ada di `dayAgenda` (`agenda.ts`), dipakai ulang oleh `agendaFor` F2.
+- "Hanya tanggal ini" hanya mengubah jam/durasi. Memindah ke jam + durasi induk = menghapus override (tanpa pill "Jam diubah").
+- Lewati membuang override tanggal itu; Kembalikan memunculkan lagi kejadian di jam induk.
+- "Tanggal ini dan seterusnya": seri lama `until` = tanggal−1, seri baru mulai tanggal itu; `exdates`/`overrides` dibagi di titik tanggal, override tepat di tanggal itu dibuang (user baru saja menetapkan jam untuk tanggal itu); `Completion` ≥ tanggal pindah ke ID baru dalam satu transaksi. Di kejadian pertama seri (tidak ada kejadian sebelum tanggal itu, tanggal yang dilewati tetap dihitung) = edit/hapus seri penuh, dan `dtstart` digeser ke tanggal itu agar pola baru tidak memunculkan kejadian sebelumnya. Ini mencegah seri lama tanpa kejadian, karena `dtstart` sering bukan kejadian (misal Senin untuk pola Selasa).
+- Hapus: "Hapus rutin" (seri penuh, dari daftar Rutin) dan "Hapus mulai tanggal ini" (`until` = tanggal−1; di kejadian pertama = hapus seri). Untuk kelas, tombol hapus di sheet dari-tanggal adalah "Hapus mulai tanggal ini". `Completion` ≥ tanggal dibiarkan karena tidak punya kejadian lagi.
+- Daftar Rutin menampilkan seri dengan `until` kosong atau ≥ hari ini, tidak digabung, berlabel "Sampai …" / "Mulai …".
+- Rutin/sesi kelas dengan pola tak dikenal (misal dari impor): tampil read-only di daftar Rutin dengan keterangan "Pola ini tidak bisa diubah di Kala" dan bisa dihapus; tidak ikut di grid/Hari.
+- Kegiatan sekali (`kind: 'event'`) tampil read-only di Hari sampai F7.
+- Tanpa versi Dexie baru dan tanpa index baru.
+
 ### F6. Tugas
 
 Sebagai pelajar, saya ingin mencatat PR, tugas, dan ujian beserta tenggatnya.
@@ -315,3 +331,4 @@ Event analytics (Cloudflare Web Analytics, tanpa data pribadi): `onboarding_done
 | 6 | Utang teknis: migrasi alias `$lib` ke `#lib` (SvelteKit 3). `$lib` saat ini dipertahankan lewat opsi `alias` yang deprecated (lihat `vite.config.ts`) | Tetap `$lib` sampai shadcn-svelte mendukung `#lib`; migrasi sebelum SvelteKit menghapus `alias` |
 | 7 | Blok sesi tunggal di bawah ±47 menit di grid Minggu lebih pendek dari target sentuh 44 px (sesi bentrok sudah diselesaikan, lihat keputusan F4) | Biarkan; evaluasi setelah beta |
 | 8 | FAB "+" di `/jadwal` langsung membuka sheet sesi kelas. Saat F7 (tambah cepat) ada, apakah FAB tetap khusus sesi kelas atau membuka tambah cepat/pilihan jenis? | Tetap membuka sheet sesi kelas; ditinjau ulang saat F7 |
+| 9 | Tampilan Hari di `/jadwal` hanya punya navigasi ‹ / › dan "Hari ini". Perlu pemilih tanggal untuk melompat jauh? | Tanpa date picker; dievaluasi saat beta |
