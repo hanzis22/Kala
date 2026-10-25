@@ -163,9 +163,6 @@ describe('occurrencesBetween: pola mingguan', () => {
   });
 
   it('menolak RRULE yang memuat DTSTART/UNTIL sendiri', () => {
-    expect(() =>
-      occurrencesBetween(routine({ rrule: 'DTSTART=20261019;FREQ=DAILY' }), '2026-10-19', '2026-10-25')
-    ).toThrow(RangeError);
     const r = routine({ rrule: 'FREQ=WEEKLY;BYDAY=MO;UNTIL=20261231T000000Z' });
     expect(() => occurrencesBetween(r, '2026-10-19', '2026-10-25')).toThrow(RangeError);
   });
@@ -358,6 +355,7 @@ describe('buildRule / parseRule', () => {
     'FREQ=DAILY;BYHOUR=7',
     'FREQ=WEEKLY;BYDAY=MO;WKST=SU',
     'FREQ=WEEKLY;BYDAY=MO;UNTIL=20261231T000000Z',
+    'DTSTART=20261019;FREQ=DAILY',
     'FREQ=WEEKLY;FREQ=DAILY;BYDAY=MO',
     'FREQ=WEEKLY;BYDAY=MO;BYDAY=TU',
     'FREQ=DAILY;X-FOO=1',
