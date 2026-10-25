@@ -299,6 +299,16 @@ describe('editFromDate', () => {
     expect((await db.completions.toArray())[0].id).toBe(`${r.id}:2026-10-20`);
   });
 
+  it('di kejadian pertama yang punya override: override tanggal itu hilang', async () => {
+    const r = await createRoutine(lesInput(), T1);
+    await moveOccurrence(r.id, '2026-10-20', { startTime: '18:00', durationMin: 90 }, T1);
+    await moveOccurrence(r.id, '2026-11-17', { startTime: '19:00', durationMin: 90 }, T1);
+    const { old, next } = await editFromDate(r.id, '2026-10-20', fromDateRoutine({ startTime: '17:00' }), T2);
+    expect(next).toBeNull();
+    expect(old.overrides).toEqual({ '2026-11-17': { startTime: '19:00', durationMin: 90 } });
+    expect((await db.routines.get(r.id))?.overrides).toEqual(old.overrides);
+  });
+
   it('kelas: validasi sesi dan mapel aktif; kejadian pertama tidak menyisakan entri', async () => {
     const kelas = await createClassRoutine(session({ days: ['MO', 'WE'] }), '2026-10-19', T1);
     const before = await counts();

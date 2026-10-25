@@ -418,7 +418,7 @@ export type SeriesPatch = Partial<
  * seri baru (id = newId) mulai di date dengan patch, membawa exdates/overrides ≥ date kecuali override
  * tepat di date (user baru saja menetapkan jam untuk tanggal itu). Di kejadian pertama seri
  * (isFirstOccurrence), seluruh seri diubah, dtstart digeser ke date (agar patch rrule tidak memunculkan
- * kejadian sebelum date), dan next = null. Ditolak (RangeError): kegiatan sekali, date bukan kejadian, rrule patch di luar
+ * kejadian sebelum date), override tepat di date juga dibuang, dan next = null. Ditolak (RangeError): kegiatan sekali, date bukan kejadian, rrule patch di luar
  * subset, slot tidak valid, until < date.
  */
 export function splitSeries(
@@ -444,7 +444,8 @@ export function splitSeries(
   }
 
   if (isFirstOccurrence(routine, date)) {
-    return { old: { ...routine, ...patch, dtstart: date, until, updatedAt: now }, next: null };
+    const overrides = withoutOverride(routine.overrides, date);
+    return { old: { ...routine, ...patch, dtstart: date, until, overrides, updatedAt: now }, next: null };
   }
 
   const old: Routine = {

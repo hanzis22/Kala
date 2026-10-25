@@ -653,6 +653,23 @@ describe('splitSeries', () => {
     expect(old).toMatchObject({ id: 'les', dtstart: '2026-10-20', startTime: '09:00', updatedAt: LATER });
   });
 
+  it('di kejadian pertama: override tepat di date dibuang, override lain ≥ date tetap', () => {
+    const moved = moveOn(les(), '2026-10-20', { startTime: '18:00', durationMin: 90 }, NOW);
+    const withLater = { ...moved, overrides: { ...moved.overrides, '2026-11-17': { startTime: '19:00' } } };
+    const { old, next } = splitSeries(withLater, '2026-10-20', { startTime: '17:00' }, 'n', LATER);
+    expect(next).toBeNull();
+    expect(occurrencesBetween(old, '2026-10-20', '2026-10-20')[0]).toMatchObject({
+      startTime: '17:00',
+      overridden: false
+    });
+    expect(occurrencesBetween(old, '2026-11-03', '2026-11-03')[0]).toMatchObject({ startTime: '17:00' });
+    expect(old.overrides).toEqual({ '2026-11-17': { startTime: '19:00' } });
+    expect(occurrencesBetween(old, '2026-11-17', '2026-11-17')[0]).toMatchObject({
+      startTime: '19:00',
+      overridden: true
+    });
+  });
+
   it('di kejadian pertama dengan patch rrule: tidak ada kejadian sebelum tanggal itu', () => {
     const r = les({ rrule: 'FREQ=WEEKLY;BYDAY=TU,TH' });
     const { old } = splitSeries(r, '2026-10-20', { rrule: 'FREQ=WEEKLY;BYDAY=MO' }, 'n', LATER);
