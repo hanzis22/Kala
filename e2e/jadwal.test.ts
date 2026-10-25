@@ -217,6 +217,7 @@ test('jam terakhir grid bisa digulir ke atas tombol tambah', async ({ page }) =>
   await page.getByRole('button', { name: 'Tambah mapel' }).click();
   await page.getByRole('dialog', { name: 'Tambah mapel' }).getByLabel('Nama mapel').fill('Seni Budaya');
   await page.getByRole('dialog', { name: 'Tambah mapel' }).getByRole('button', { name: 'Simpan' }).click();
+  await expect(page.getByRole('dialog', { name: 'Tambah mapel' })).toBeHidden();
   await page.goto('/jadwal');
   await page.getByRole('button', { name: 'Tambah sesi kelas' }).click();
   const sheet = page.getByRole('dialog', { name: 'Tambah sesi kelas' });
