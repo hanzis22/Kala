@@ -1,17 +1,20 @@
 <script lang="ts">
-  /** Bottom sheet tambah/ubah sesi kelas mingguan (PRD §F4.2). Mengubah = seluruh seri (F5 menambah per tanggal). */
+  /**
+   * Bottom sheet tambah/ubah sesi kelas mingguan (PRD §F4.2). Tanpa `fromDate`, mengubah = seluruh seri;
+   * dengan `fromDate`, perubahan berlaku mulai tanggal itu ("Tanggal ini dan seterusnya", PRD §F5.4).
+   */
   import { untrack } from 'svelte';
   import { resolve } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import * as Sheet from '$lib/components/ui/sheet';
   import { copy } from '$lib/copy';
   import { ValidationError } from '$lib/data/repo/errors';
-  import { createClassRoutine, updateClassRoutine } from '$lib/data/repo/routines';
+  import { createClassRoutine, editFromDate, updateClassRoutine } from '$lib/data/repo/routines';
   import { isValidLocalTime, toMinutes } from '$lib/domain/dates';
   import { MAX_DURATION, MIN_DURATION, WEEKDAYS, weeklyDays, type Weekday } from '$lib/domain/recurrence';
   import { MAX_LOCATION_LENGTH, validateClassSession } from '$lib/domain/timetable';
   import type { LocalDate, Routine } from '$lib/domain/types';
-  import { formatClock } from '$lib/format';
+  import { formatClock, formatDayMonth } from '$lib/format';
   import { schedule } from '$lib/stores/schedule.svelte';
 
   let {
@@ -20,7 +23,9 @@
     dtstart,
     weekStartsOn,
     showSunday,
-    ondelete
+    fromDate,
+    ondelete,
+    onend
   }: {
     open?: boolean;
     /** null = tambah baru. */
@@ -29,7 +34,11 @@
     dtstart: LocalDate;
     weekStartsOn: 0 | 1;
     showSunday: boolean;
+    /** Diisi = mode "Tanggal ini dan seterusnya" untuk `routine`. */
+    fromDate?: LocalDate;
     ondelete: (routine: Routine) => void;
+    /** "Hapus mulai tanggal ini" (mode fromDate). */
+    onend?: (routine: Routine, date: LocalDate) => void;
   } = $props();
 
   const t = copy.session;
@@ -108,7 +117,9 @@
     saving = true;
     try {
       const now = new Date().toISOString();
-      if (routine) await updateClassRoutine(routine.id, input, now);
+      if (routine && fromDate)
+        await editFromDate(routine.id, fromDate, { kind: 'class', session: input }, now);
+      else if (routine) await updateClassRoutine(routine.id, input, now);
       else await createClassRoutine(input, dtstart, now);
       open = false;
     } catch (err) {
@@ -122,7 +133,8 @@
   function requestDelete() {
     if (!routine) return;
     open = false;
-    ondelete(routine);
+    if (fromDate) onend?.(routine, fromDate);
+    else ondelete(routine);
   }
 
   const inputClass =
@@ -133,7 +145,9 @@
   <Sheet.Content>
     <Sheet.Header>
       <Sheet.Title>{routine ? t.sheetEditTitle : t.sheetAddTitle}</Sheet.Title>
-      <Sheet.Description>{t.sheetDescription}</Sheet.Description>
+      <Sheet.Description
+        >{fromDate ? t.fromDescription(formatDayMonth(fromDate)) : t.sheetDescription}</Sheet.Description
+      >
     </Sheet.Header>
 
     {#if schedule.subjects.length === 0}
@@ -225,7 +239,7 @@
 
         <Button type="submit" disabled={saving}>{copy.common.save}</Button>
         {#if routine}
-          <Button variant="destructive" onclick={requestDelete}>{t.delete}</Button>
+          <Button variant="destructive" onclick={requestDelete}>{fromDate ? t.deleteFrom : t.delete}</Button>
         {/if}
       </form>
     {/if}

@@ -22,7 +22,8 @@
     today: LocalDate;
     routines: readonly Routine[];
     subjects: readonly Subject[];
-    onselect: (routine: Routine) => void;
+    /** Sesi tunggal diketuk, beserta tanggal kejadiannya. */
+    onselect: (routine: Routine, date: LocalDate) => void;
     /** Slot berisi lebih dari satu sesi yang bentrok. */
     onpick: (slot: TimetableSlot, date: LocalDate) => void;
   } = $props();
@@ -158,7 +159,7 @@
                     endClock(slot.end),
                     routine.location
                   )}
-                  onclick={() => onselect(routine)}
+                  onclick={() => onselect(routine, day.date)}
                 >
                   <span class="flex w-full min-w-0 flex-col" aria-hidden="true">
                     {#each labelLines(subject, slot.end - slot.start, tall) as word, i (i)}

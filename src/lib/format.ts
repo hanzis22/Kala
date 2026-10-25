@@ -30,6 +30,11 @@ export function formatWeekdayShort(date: LocalDate): string {
 
 const dayMonth = new Intl.DateTimeFormat('id-ID', { timeZone: 'UTC', day: 'numeric', month: 'short' });
 
+/** '2026-11-30' → '30 Nov' */
+export function formatDayMonth(date: LocalDate): string {
+  return dayMonth.format(utcNoon(date)).replace(/\.$/, '');
+}
+
 /** '2026-10-19', '2026-10-24' → '19–24 Okt'; beda bulan → '28 Des – 2 Jan'. */
 export function formatDateRange(from: LocalDate, to: LocalDate): string {
   const clean = (s: string) => s.replace(/\.$/, '');
