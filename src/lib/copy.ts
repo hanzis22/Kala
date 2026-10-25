@@ -3,7 +3,7 @@
  * Dikumpulkan di sini agar siap i18n (Paraglide, Fase 3).
  */
 import type { Weekday } from '$lib/domain/recurrence';
-import type { PrayerName } from '$lib/domain/types';
+import type { PrayerName, RoutineKind } from '$lib/domain/types';
 
 export const copy = {
   appName: 'Kala',
@@ -174,7 +174,21 @@ export const copy = {
       `${n} sesi bentrok, ${day} ${start}–${end}: ${subjects}. Pilih sesi`,
     pickTitle: 'Pilih sesi',
     pickDescription: (day: string) => `Jam sesi ini bertumpuk di hari ${day}. Pilih yang ingin kamu ubah.`,
-    pickItemLabel: (subject: string, start: string, end: string) => `Ubah ${subject}, ${start}–${end}`
+    pickItemLabel: (subject: string, start: string, end: string) => `Ubah ${subject}, ${start}–${end}`,
+    viewGroupLabel: 'Tampilan jadwal',
+    viewDay: 'Hari',
+    viewWeek: 'Minggu',
+    dayToday: 'Hari ini',
+    dayPrev: 'Hari sebelumnya',
+    dayNext: 'Hari berikutnya',
+    dayEmpty: 'Tidak ada kelas, rutin, atau kegiatan di hari ini.',
+    kindTag: { class: 'Kelas', routine: 'Rutin', event: 'Kegiatan' } satisfies Record<RoutineKind, string>,
+    overridden: 'Jam diubah',
+    skipped: 'Dilewati',
+    restore: 'Kembalikan',
+    restoreLabel: (title: string) => `Kembalikan ${title}`,
+    dayItemLabel: (title: string, time: string, overridden: boolean) =>
+      `${title}, ${time}${overridden ? ', jam diubah' : ''}. Ubah`
   },
 
   subjects: {

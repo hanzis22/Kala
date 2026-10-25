@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Jadwal (PRD §F4.3): tampilan Minggu. Tampilan Hari dan daftar Rutin = F5.
+   * Jadwal (PRD §3, §F4.3, §F5): toggle Hari / Minggu (selalu dibuka di Minggu, tidak disimpan).
    * Aksi utama (brand) satu-satunya: FAB "+" untuk menambah sesi kelas.
    */
   import BookOpen from '@lucide/svelte/icons/book-open';
@@ -9,10 +9,13 @@
   import { resolve } from '$app/paths';
   import ClassSessionSheet from '$lib/components/ClassSessionSheet.svelte';
   import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+  import DayView from '$lib/components/DayView.svelte';
   import { Button } from '$lib/components/ui/button';
   import * as Sheet from '$lib/components/ui/sheet';
   import { copy } from '$lib/copy';
-  import { deleteRoutine } from '$lib/data/repo/routines';
+  import { deleteRoutine, restoreOccurrence } from '$lib/data/repo/routines';
+  import { dayAgenda, type DayItem } from '$lib/domain/agenda';
+  import { addDays } from '$lib/domain/dates';
   import { weekdayOf, weeklyDays } from '$lib/domain/recurrence';
   import { buildWeekTimetable, weekStart, type TimetableSlot } from '$lib/domain/timetable';
   import type { LocalDate, Routine } from '$lib/domain/types';
@@ -33,6 +36,26 @@
     formatDateRange(timetable.days[0].date, timetable.days[timetable.days.length - 1].date)
   );
   const hasSessions = $derived(timetable.days.some((d) => d.slots.length > 0));
+
+  let view = $state<'week' | 'day'>('week');
+  /** Tanggal tampilan Hari; diisi hari ini setiap kali beralih ke Hari. */
+  let selectedDate = $state<LocalDate>(today.current);
+
+  function showView(next: 'week' | 'day') {
+    if (next === 'day' && view !== 'day') selectedDate = today.current;
+    view = next;
+  }
+
+  const dayItems = $derived(
+    dayAgenda(selectedDate, {
+      routines: [...schedule.classRoutines, ...schedule.routines, ...schedule.events],
+      subjects: schedule.subjects
+    })
+  );
+
+  async function restore(item: DayItem) {
+    await restoreOccurrence(item.routine.id, item.date, new Date().toISOString());
+  }
 
   let sheetOpen = $state(false);
   let editing = $state<Routine | null>(null);
@@ -106,7 +129,37 @@
     </a>
   </header>
 
-  {#if schedule.loaded && schedule.subjects.length === 0}
+  <div
+    role="group"
+    aria-label={t.viewGroupLabel}
+    class="grid grid-cols-2 gap-1 rounded-lg border border-line bg-card p-1"
+  >
+    {#each [['day', t.viewDay], ['week', t.viewWeek]] as const as [value, label] (value)}
+      <button
+        type="button"
+        aria-pressed={view === value}
+        class={[
+          'min-h-11 rounded-md text-label font-extrabold',
+          view === value ? 'bg-sunken text-ink' : 'text-muted hover:bg-sunken'
+        ]}
+        onclick={() => showView(value)}>{label}</button
+      >
+    {/each}
+  </div>
+
+  {#if view === 'day'}
+    {#if schedule.loaded}
+      <DayView
+        date={selectedDate}
+        today={today.current}
+        items={dayItems}
+        onprev={() => (selectedDate = addDays(selectedDate, -1))}
+        onnext={() => (selectedDate = addDays(selectedDate, 1))}
+        ontoday={() => (selectedDate = today.current)}
+        onrestore={restore}
+      />
+    {/if}
+  {:else if schedule.loaded && schedule.subjects.length === 0}
     <section class="flex flex-col gap-4 rounded-xl border border-line bg-card p-5">
       <div class="flex flex-col gap-1">
         <h2 class="text-heading-md font-extrabold text-ink">{t.noSubjectsTitle}</h2>
