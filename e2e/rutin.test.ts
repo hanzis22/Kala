@@ -196,7 +196,7 @@ test('rutin setiap 2 minggu: lewati, kembalikan, pindah jam, ubah mulai tanggal,
   expect(errors).toEqual([]);
 });
 
-test('kelas: ubah hanya tanggal ini dari grid Minggu', async ({ page }) => {
+test('kelas: ubah hanya tanggal ini dari grid Minggu', async ({ page, context }) => {
   const errors = collectPageErrors(page);
   await page.clock.setFixedTime(NOW);
   await completeOnboarding(page);
@@ -224,6 +224,22 @@ test('kelas: ubah hanya tanggal ini dari grid Minggu', async ({ page }) => {
   ).toBeVisible();
   await gotoDay(page, '2026-10-26');
   await expect(dayCard(page).getByRole('button', { name: 'Matematika, 07.00–08.30. Ubah' })).toBeVisible();
+
+  // Offline + reload: Senin 09.00 dan Rabu 07.00 tetap ada.
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Jadwal' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Matematika, Senin 09.00–10.30, ruang 7B. Ubah sesi' })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Matematika, Rabu 07.00–08.30, ruang 7B. Ubah sesi' })
+  ).toBeVisible();
 
   expect(errors).toEqual([]);
 });
