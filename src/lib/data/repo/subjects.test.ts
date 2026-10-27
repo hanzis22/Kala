@@ -3,7 +3,14 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '$lib/data/db';
 import { ValidationError } from './errors';
 import { createClassRoutine, listClassRoutines } from './routines';
-import { createSubject, deleteSubject, getSubject, listSubjects, updateSubject } from './subjects';
+import {
+  createSubject,
+  deleteSubject,
+  getSubject,
+  getSubjectsByIds,
+  listSubjects,
+  updateSubject
+} from './subjects';
 
 const T1 = '2026-10-19T01:00:00.000Z';
 const T2 = '2026-10-19T02:00:00.000Z';
@@ -79,6 +86,10 @@ describe('data lama tanpa abbr (sebelum singkatan ditambahkan)', () => {
     expect(await getSubject(legacy.id)).toEqual({ ...legacy, abbr: null });
   });
 
+  it('getSubjectsByIds membacanya dengan abbr null', async () => {
+    expect(await getSubjectsByIds([legacy.id])).toEqual([{ ...legacy, abbr: null }]);
+  });
+
   it('updateSubject bisa menambahkan singkatan', async () => {
     const next = await updateSubject(legacy.id, { ...input('Matematika', '7B'), abbr: 'MTK' }, T2);
     expect(next).toEqual({ ...legacy, abbr: 'MTK', updatedAt: T2 });
@@ -88,6 +99,25 @@ describe('data lama tanpa abbr (sebelum singkatan ditambahkan)', () => {
   it('updateSubject tanpa singkatan menyimpan abbr null secara eksplisit', async () => {
     await updateSubject(legacy.id, input('Matematika', '7B'), T2);
     expect(await db.subjects.get(legacy.id)).toHaveProperty('abbr', null);
+  });
+});
+
+describe('getSubjectsByIds', () => {
+  it('termasuk mapel yang sudah dihapus, urut sesuai ID yang diminta', async () => {
+    const mtk = await createSubject(input('Matematika'), T1);
+    const fisika = await createSubject(input('Fisika'), T1);
+    await deleteSubject(fisika.id, T2);
+    const found = await getSubjectsByIds([fisika.id, mtk.id]);
+    expect(found.map((s) => [s.name, s.deletedAt])).toEqual([
+      ['Fisika', T2],
+      ['Matematika', null]
+    ]);
+  });
+
+  it('ID yang tidak ada dilewati', async () => {
+    const mtk = await createSubject(input('Matematika'), T1);
+    expect(await getSubjectsByIds(['tidak-ada', mtk.id])).toEqual([mtk]);
+    expect(await getSubjectsByIds([])).toEqual([]);
   });
 });
 
