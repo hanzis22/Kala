@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { assignLanes, dayAgenda, groupOverlaps } from './agenda';
-import type { Routine } from './types';
+import { assignLanes, dayAgenda, dayTasks, groupOverlaps, mergeDay } from './agenda';
+import type { Routine, Task } from './types';
 
 const span = (id: string, start: number, end: number) => ({ id, start, end });
 const lanes = (items: ReturnType<typeof assignLanes<ReturnType<typeof span>>>) =>
@@ -171,5 +171,195 @@ describe('dayAgenda', () => {
     const orphan = { ...base, id: 'orphan', subjectId: 'hilang' };
     expect(dayAgenda('2026-10-19', { routines: [weird, orphan], subjects })).toEqual([]);
     expect(dayAgenda('2026-10-26', { routines: [les], subjects })).toEqual([]);
+  });
+});
+
+describe('dayTasks', () => {
+  // Senin 26 Okt 2026.
+  const TODAY = '2026-10-26';
+  const task = (over: Partial<Task> = {}): Task => ({
+    id: 't',
+    title: 'Tugas',
+    notes: null,
+    type: 'pr',
+    subjectId: null,
+    dueDate: null,
+    dueTime: null,
+    scheduledDate: null,
+    startTime: null,
+    durationMin: null,
+    priority: 'medium',
+    quadrant: null,
+    status: 'todo',
+    completedAt: null,
+    createdAt: '2026-10-20T00:00:00.000Z',
+    updatedAt: '2026-10-20T00:00:00.000Z',
+    deletedAt: null,
+    ...over
+  });
+  const slot = (date: string, startTime = '16:00', durationMin = 90) => ({
+    scheduledDate: date,
+    startTime,
+    durationMin
+  });
+  const ids = (tasks: readonly Task[]) => tasks.map((t) => t.id);
+  const blocks = (result: ReturnType<typeof dayTasks>) =>
+    result.scheduled.map((i) => `${i.task.id}@${i.start}-${i.end}${i.done ? ' (selesai)' : ''}`);
+
+  it('tenggat saja → bagian Tenggat, bukan blok', () => {
+    const result = dayTasks(TODAY, [task({ id: 'pr', dueDate: TODAY, dueTime: '13:00' })], TODAY);
+    expect(ids(result.due)).toEqual(['pr']);
+    expect(result.scheduled).toEqual([]);
+  });
+
+  it('jadwal saja → blok', () => {
+    const result = dayTasks(TODAY, [task({ id: 'rangkuman', title: 'Rangkuman', ...slot(TODAY) })], TODAY);
+    expect(blocks(result)).toEqual(['rangkuman@960-1050']);
+    expect(result.scheduled[0]).toMatchObject({
+      date: TODAY,
+      title: 'Rangkuman',
+      startTime: '16:00',
+      durationMin: 90,
+      done: false
+    });
+    expect(result.due).toEqual([]);
+  });
+
+  it('tenggat + jadwal di hari yang sama → hanya blok', () => {
+    const result = dayTasks(TODAY, [task({ id: 'x', dueDate: TODAY, ...slot(TODAY) })], TODAY);
+    expect(blocks(result)).toEqual(['x@960-1050']);
+    expect(result.due).toEqual([]);
+  });
+
+  it('tenggat hari ini + jadwal kemarin → Tenggat hari ini, blok kemarin', () => {
+    const tasks = [task({ id: 'x', dueDate: TODAY, ...slot('2026-10-25') })];
+    expect(ids(dayTasks(TODAY, tasks, TODAY).due)).toEqual(['x']);
+    expect(blocks(dayTasks(TODAY, tasks, TODAY))).toEqual([]);
+    expect(blocks(dayTasks('2026-10-25', tasks, TODAY))).toEqual(['x@960-1050']);
+  });
+
+  it('tugas selesai tetap tampil dengan done: true', () => {
+    const done = { status: 'done' as const, completedAt: '2026-10-26T05:00:00.000Z' };
+    const result = dayTasks(
+      TODAY,
+      [task({ id: 'blok', ...slot(TODAY), ...done }), task({ id: 'tenggat', dueDate: TODAY, ...done })],
+      TODAY
+    );
+    expect(blocks(result)).toEqual(['blok@960-1050 (selesai)']);
+    expect(ids(result.due)).toEqual(['tenggat']);
+  });
+
+  it('tugas terhapus tidak pernah ada', () => {
+    const deletedAt = '2026-10-26T05:00:00.000Z';
+    const result = dayTasks(
+      TODAY,
+      [
+        task({ id: 'blok', ...slot(TODAY), deletedAt }),
+        task({ id: 'tenggat', dueDate: TODAY, deletedAt }),
+        task({ id: 'sebelumnya', ...slot('2026-10-25'), deletedAt })
+      ],
+      TODAY
+    );
+    expect(result).toEqual({ scheduled: [], due: [], carriedOver: [] });
+  });
+
+  it('slot rusak dilewati', () => {
+    const result = dayTasks(
+      TODAY,
+      [
+        task({ id: 'jam', ...slot(TODAY, '25:00') }),
+        task({ id: 'durasi', ...slot(TODAY, '16:00', 0) }),
+        task({ id: 'tengah-malam', ...slot(TODAY, '23:30', 60) })
+      ],
+      TODAY
+    );
+    expect(result.scheduled).toEqual([]);
+  });
+
+  it('tenggat kemarin tidak masuk Tenggat hari ini', () => {
+    expect(dayTasks(TODAY, [task({ id: 'x', dueDate: '2026-10-25' })], TODAY).due).toEqual([]);
+  });
+
+  it('blok urut mulai, selesai, lalu id; Tenggat urut compareTasks', () => {
+    const result = dayTasks(
+      TODAY,
+      [
+        task({ id: 'b', ...slot(TODAY, '16:00', 60) }),
+        task({ id: 'a', ...slot(TODAY, '16:00', 60) }),
+        task({ id: 'c', ...slot(TODAY, '16:00', 30) }),
+        task({ id: 'd', ...slot(TODAY, '07:00', 60) }),
+        task({ id: 'tanpa-jam', dueDate: TODAY }),
+        task({ id: 'pagi', dueDate: TODAY, dueTime: '08:00' })
+      ],
+      TODAY
+    );
+    expect(blocks(result)).toEqual(['d@420-480', 'c@960-990', 'a@960-1020', 'b@960-1020']);
+    expect(ids(result.due)).toEqual(['pagi', 'tanpa-jam']);
+  });
+
+  it('carriedOver hanya terisi saat tanggalnya hari ini', () => {
+    const tasks = [
+      task({ id: 'sore', ...slot('2026-10-25', '16:00') }),
+      task({ id: 'pagi', ...slot('2026-10-25', '08:00'), dueDate: '2026-10-30' }),
+      task({ id: 'lewat', ...slot('2026-10-25'), dueDate: '2026-10-25' })
+    ];
+    expect(ids(dayTasks(TODAY, tasks, TODAY).carriedOver)).toEqual(['pagi', 'sore']);
+    expect(dayTasks('2026-10-27', tasks, TODAY).carriedOver).toEqual([]);
+    expect(dayTasks('2026-10-25', tasks, TODAY).carriedOver).toEqual([]);
+  });
+});
+
+describe('mergeDay', () => {
+  const les: Routine = {
+    id: 'x',
+    kind: 'routine',
+    title: 'Les',
+    subjectId: null,
+    startTime: '16:00',
+    durationMin: 60,
+    rrule: 'FREQ=DAILY',
+    dtstart: '2026-10-19',
+    until: null,
+    exdates: [],
+    overrides: {},
+    location: null,
+    createdAt: '2026-10-19T00:00:00.000Z',
+    updatedAt: '2026-10-19T00:00:00.000Z',
+    deletedAt: null
+  };
+  const task = (id: string, startTime: string, durationMin: number): Task => ({
+    id,
+    title: id,
+    notes: null,
+    type: 'tugas',
+    subjectId: null,
+    dueDate: null,
+    dueTime: null,
+    scheduledDate: '2026-10-26',
+    startTime,
+    durationMin,
+    priority: 'medium',
+    quadrant: null,
+    status: 'todo',
+    completedAt: null,
+    createdAt: '2026-10-20T00:00:00.000Z',
+    updatedAt: '2026-10-20T00:00:00.000Z',
+    deletedAt: null
+  });
+
+  it('urut mulai lalu selesai; rutin dulu jika sama; kunci unik walau id sama', () => {
+    const date = '2026-10-26';
+    const routines = dayAgenda(date, { routines: [les], subjects: [] });
+    const tasks = dayTasks(date, [task('x', '16:00', 60), task('pagi', '07:00', 30)], date).scheduled;
+    const rows = mergeDay(routines, tasks);
+    expect(rows.map((r) => r.key)).toEqual(['task:pagi', 'routine:x:false', 'task:x']);
+    expect(rows.map((r) => r.type)).toEqual(['task', 'routine', 'task']);
+  });
+
+  it('kejadian dilewati punya kunci sendiri; id memutus urutan sesama jenis', () => {
+    const date = '2026-10-26';
+    const skipped = { ...les, id: 'w', exdates: [date] };
+    const rows = mergeDay(dayAgenda(date, { routines: [les, skipped], subjects: [] }), []);
+    expect(rows.map((r) => r.key)).toEqual(['routine:w:true', 'routine:x:false']);
   });
 });
