@@ -13,7 +13,7 @@
  * - Imsak = Subuh yang ditampilkan − 10 menit.
  */
 import { CalculationParameters, Coordinates, Madhab, PrayerTimes, Rounding } from 'adhan';
-import { addDays, dayNumber, MINUTES_PER_DAY, toZoned } from './dates';
+import { addDays, dayNumber, isValidLocalDate, MINUTES_PER_DAY, toZoned, zoneOffsetMinutes } from './dates';
 import {
   PRAYERS,
   type LocalDate,
@@ -123,6 +123,14 @@ const nowAt = (now: Date, config: PrayerConfig) => {
 
 export const prayerLogId = (date: LocalDate, prayer: PrayerName) => `${date}:${prayer}`;
 
+/** Kebalikan `prayerLogId`; null jika tanggal atau nama sholat tidak valid. */
+export function parsePrayerLogId(id: string): { date: LocalDate; prayer: PrayerName } | null {
+  const [date, prayer, ...rest] = id.split(':');
+  if (rest.length > 0 || prayer === undefined || !isValidLocalDate(date)) return null;
+  const name = PRAYERS.find((p) => p === prayer);
+  return name === undefined ? null : { date, prayer: name };
+}
+
 /**
  * Status tiap sholat pada `date`: done (ada log), now (dalam rentangnya), missed (rentangnya sudah
  * lewat tanpa log), upcoming (belum masuk). Antara Terbit dan Dzuhur tidak ada yang berstatus now.
@@ -164,6 +172,27 @@ export function nextPrayer(
   throw new Error('nextPrayer: tidak ada sholat berikutnya');
 }
 
+/**
+ * Sholat yang sedang dalam rentang fikihnya, beserta tanggal lokasinya. Antara 00.00 dan Subuh yang aktif
+ * adalah Isya tanggal kemarin; antara Terbit dan Dzuhur tidak ada (null).
+ */
+export function activePrayer(
+  now: Date,
+  config: PrayerConfig
+): { prayer: PrayerName; date: LocalDate } | null {
+  const n = nowAt(now, config);
+  const candidates: { prayer: PrayerName; date: LocalDate }[] = [
+    { prayer: 'isya', date: addDays(n.date, -1) },
+    ...PRAYERS.map((prayer) => ({ prayer, date: n.date }))
+  ];
+  return (
+    candidates.find(({ prayer, date }) => {
+      const [start, end] = prayerWindow(prayer, date, config);
+      return start <= n.abs && n.abs < end;
+    }) ?? null
+  );
+}
+
 /** PRD §F3.4: boleh dicatat sejak waktunya masuk sampai akhir hari berikutnya. */
 export function canLogPrayer(date: LocalDate, prayer: PrayerName, now: Date, config: PrayerConfig): boolean {
   const n = nowAt(now, config);
@@ -176,6 +205,18 @@ export function isNightForTheme(now: Date, config: PrayerConfig): boolean {
   const n = nowAt(now, config);
   const t = prayerTimes(n.date, config);
   return n.minutes >= t.isya || n.minutes < t.subuh;
+}
+
+/**
+ * Zona perangkat berbeda dari zona lokasi sholat? Yang dibandingkan offset pada instan `now`, bukan nama
+ * IANA: Asia/Pontianak dan Asia/Jakarta sama-sama UTC+7, jadi tidak dianggap berbeda.
+ */
+export function zoneMismatch(
+  location: Pick<Location, 'timeZone'>,
+  deviceTimeZone: string,
+  now: Date
+): boolean {
+  return zoneOffsetMinutes(now, location.timeZone) !== zoneOffsetMinutes(now, deviceTimeZone);
 }
 
 /** PrayerConfig dari Settings; null jika lokasi belum dipilih. */

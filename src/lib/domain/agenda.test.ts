@@ -1,6 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { assignLanes, dayAgenda, dayTasks, groupOverlaps, mergeDay } from './agenda';
-import type { Routine, Task } from './types';
+import { CITIES } from '$lib/data/cities';
+import {
+  agendaFor,
+  agendaPrayerStatuses,
+  agendaWindow,
+  assignLanes,
+  dayAgenda,
+  dayTasks,
+  groupOverlaps,
+  isFaded,
+  markConflicts,
+  mergeDay,
+  PRAYER_BLOCK_MIN,
+  prayerOverlap,
+  type AgendaSources,
+  type AgendaWindow
+} from './agenda';
+import { addDays, fromMinutes } from './dates';
+import { prayerLogId, prayerTimes, type PrayerConfig } from './prayer';
+import { defaultSettings } from './settings';
+import type {
+  AgendaItem,
+  AgendaStatus,
+  Completion,
+  LocalDate,
+  PrayerLog,
+  PrayerName,
+  Routine,
+  Task
+} from './types';
 
 const span = (id: string, start: number, end: number) => ({ id, start, end });
 const lanes = (items: ReturnType<typeof assignLanes<ReturnType<typeof span>>>) =>
@@ -361,5 +389,551 @@ describe('mergeDay', () => {
     const skipped = { ...les, id: 'w', exdates: [date] };
     const rows = mergeDay(dayAgenda(date, { routines: [les, skipped], subjects: [] }), []);
     expect(rows.map((r) => r.key)).toEqual(['routine:w:true', 'routine:x:false']);
+  });
+});
+
+// ---------- F2: agenda gabungan ----------
+
+const jakarta = CITIES.find((c) => c.code === '3173')!;
+const JKT: PrayerConfig = {
+  location: {
+    mode: 'city',
+    cityId: jakarta.id,
+    label: jakarta.name,
+    lat: jakarta.lat,
+    lng: jakarta.lng,
+    timeZone: jakarta.timeZone
+  },
+  prayer: defaultSettings().prayer
+};
+// Senin 26 Okt 2026.
+const D: LocalDate = '2026-10-26';
+const T = prayerTimes(D, JKT);
+
+/** Instan untuk jam dinding WIB. */
+const wib = (date: LocalDate, minutes: number) => new Date(`${date}T${fromMinutes(minutes)}:00+07:00`);
+const hm = (h: number, m = 0) => h * 60 + m;
+
+const routine = (over: Partial<Routine> = {}): Routine => ({
+  id: 'r',
+  kind: 'routine',
+  title: 'Rutin',
+  subjectId: null,
+  startTime: '16:00',
+  durationMin: 60,
+  rrule: 'FREQ=DAILY',
+  dtstart: '2026-10-01',
+  until: null,
+  exdates: [],
+  overrides: {},
+  location: null,
+  createdAt: '2026-10-01T00:00:00.000Z',
+  updatedAt: '2026-10-01T00:00:00.000Z',
+  deletedAt: null,
+  ...over
+});
+const kelas = (id: string, startTime: string, durationMin: number, over: Partial<Routine> = {}) =>
+  routine({ id, kind: 'class', title: '', subjectId: 's1', startTime, durationMin, ...over });
+const agendaTask = (over: Partial<Task> = {}): Task => ({
+  id: 't',
+  title: 'Tugas',
+  notes: null,
+  type: 'tugas',
+  subjectId: null,
+  dueDate: null,
+  dueTime: null,
+  scheduledDate: D,
+  startTime: '13:00',
+  durationMin: 60,
+  priority: 'medium',
+  quadrant: null,
+  status: 'todo',
+  completedAt: null,
+  createdAt: '2026-10-20T00:00:00.000Z',
+  updatedAt: '2026-10-20T00:00:00.000Z',
+  deletedAt: null,
+  ...over
+});
+const prayerLog = (date: LocalDate, prayer: PrayerName): PrayerLog => ({
+  id: prayerLogId(date, prayer),
+  date,
+  prayer,
+  congregation: false,
+  at: '2026-10-26T00:00:00.000Z'
+});
+const completion = (routineId: string, date: LocalDate): Completion => ({
+  id: `${routineId}:${date}`,
+  routineId,
+  date,
+  at: '2026-10-26T00:00:00.000Z'
+});
+const sources = (over: Partial<AgendaSources> = {}): AgendaSources => ({
+  routines: [],
+  subjects: [{ id: 's1', name: 'Matematika' }],
+  tasks: [],
+  completions: [],
+  prayerLogs: [],
+  prayer: JKT,
+  deviceTimeZone: 'Asia/Jakarta',
+  today: D,
+  ...over
+});
+const noPrayer = (over: Partial<AgendaSources> = {}) => sources({ prayer: null, ...over });
+const byKey = <V>(items: readonly AgendaItem[], pick: (i: AgendaItem) => V) =>
+  Object.fromEntries(items.map((i) => [i.key, pick(i)]));
+const prayerStarts = (items: readonly AgendaItem[]) =>
+  items.filter((i) => i.source === 'prayer').map((i) => `${i.sourceId}@${i.start}`);
+
+describe('agendaFor: isi dan urutan', () => {
+  it('gabungan kelas, rutin, kegiatan, tugas berjadwal, dan 5 sholat, urut jam; sholat dulu di jam sama', () => {
+    const rapat = routine({
+      id: 'rapat',
+      kind: 'event',
+      title: 'Rapat OSIS',
+      rrule: null,
+      dtstart: D,
+      startTime: fromMinutes(T.dzuhur),
+      durationMin: PRAYER_BLOCK_MIN
+    });
+    const items = agendaFor(
+      D,
+      sources({
+        routines: [
+          routine({ id: 'les', title: 'Les', location: 'Gedung B' }),
+          kelas('mtk', '07:00', 90),
+          rapat
+        ],
+        tasks: [agendaTask({ id: 'rangkuman', title: 'Rangkuman', startTime: '16:00' })]
+      }),
+      wib(D, hm(3))
+    );
+    expect(items.map((i) => i.key)).toEqual([
+      `prayer:${D}:subuh`,
+      `routine:mtk:${D}`,
+      `prayer:${D}:dzuhur`,
+      `routine:rapat:${D}`,
+      `prayer:${D}:ashar`,
+      `routine:les:${D}`,
+      'task:rangkuman',
+      `prayer:${D}:maghrib`,
+      `prayer:${D}:isya`
+    ]);
+    expect(items[1]).toMatchObject({
+      source: 'class',
+      sourceId: 'mtk',
+      date: D,
+      start: 420,
+      end: 510,
+      title: 'Matematika',
+      meta: '',
+      subjectId: 's1'
+    });
+    expect(items[2]).toMatchObject({
+      source: 'prayer',
+      sourceId: `${D}:dzuhur`,
+      title: 'dzuhur',
+      meta: '',
+      subjectId: null,
+      start: T.dzuhur,
+      end: T.dzuhur + PRAYER_BLOCK_MIN
+    });
+    expect(items[3]).toMatchObject({ source: 'event', title: 'Rapat OSIS' });
+    expect(items[5]).toMatchObject({ source: 'routine', meta: 'Gedung B', subjectId: null });
+    expect(items[6]).toMatchObject({ source: 'task', sourceId: 'rangkuman', title: 'Rangkuman', meta: '' });
+  });
+
+  it('kejadian dilewati tidak masuk; override memakai jam override', () => {
+    const items = agendaFor(
+      D,
+      noPrayer({
+        routines: [
+          routine({ id: 'les', exdates: [D] }),
+          kelas('mtk', '07:00', 90, { overrides: { [D]: { startTime: '09:00' } } })
+        ]
+      }),
+      wib(D, hm(3))
+    );
+    expect(items.map((i) => `${i.key}@${i.start}-${i.end}`)).toEqual([`routine:mtk:${D}@540-630`]);
+  });
+
+  it('item sholat [awal, awal + 15) dan dipotong di 1440', () => {
+    const items = agendaFor(D, sources(), wib(D, hm(3)));
+    expect(items.filter((i) => i.source === 'prayer').map((i) => [i.start, i.end])).toEqual(
+      [T.subuh, T.dzuhur, T.ashar, T.maghrib, T.isya].map((t) => [t, t + PRAYER_BLOCK_MIN])
+    );
+    // Isya Jakarta 18.59 WIB = 23.59 di UTC+12.
+    const late = agendaFor(D, sources({ deviceTimeZone: 'Etc/GMT-12' }), wib(D, hm(3)));
+    const isya = late.find((i) => i.sourceId === `${D}:isya`)!;
+    expect(isya.start).toBe(T.isya + 300);
+    expect(isya.start).toBeGreaterThan(1440 - PRAYER_BLOCK_MIN);
+    expect(isya.end).toBe(1440);
+  });
+
+  it('tanpa lokasi: tanpa item sholat', () => {
+    const items = agendaFor(D, noPrayer({ routines: [routine()] }), wib(D, hm(3)));
+    expect(items.map((i) => i.source)).toEqual(['routine']);
+  });
+
+  it('kelas/rutin sebelum tugas di jam yang sama, lalu sourceId', () => {
+    const items = agendaFor(
+      D,
+      noPrayer({
+        routines: [routine({ id: 'z' }), routine({ id: 'a' })],
+        tasks: [agendaTask({ id: 'b', startTime: '16:00' }), agendaTask({ id: 'a', startTime: '16:00' })]
+      }),
+      wib(D, hm(3))
+    );
+    expect(items.map((i) => i.key)).toEqual([`routine:a:${D}`, `routine:z:${D}`, 'task:a', 'task:b']);
+  });
+});
+
+describe('agendaFor: status', () => {
+  it('Completion `${id}:${date}` → done; Completion tanggal lain tidak berpengaruh', () => {
+    const items = agendaFor(
+      D,
+      noPrayer({
+        routines: [routine({ id: 'a' }), routine({ id: 'b', startTime: '18:00' })],
+        completions: [completion('a', D), completion('b', '2026-10-25')]
+      }),
+      wib(D, hm(3))
+    );
+    expect(byKey(items, (i) => i.status)).toEqual({ [`routine:a:${D}`]: 'done', [`routine:b:${D}`]: 'next' });
+  });
+
+  it('tugas selesai → done; PrayerLog → sholat done', () => {
+    const items = agendaFor(
+      D,
+      sources({
+        tasks: [agendaTask({ id: 'x', status: 'done', completedAt: '2026-10-26T01:00:00.000Z' })],
+        prayerLogs: [prayerLog(D, 'subuh'), prayerLog('2026-10-25', 'dzuhur')]
+      }),
+      wib(D, hm(3))
+    );
+    const s = byKey(items, (i) => i.status);
+    expect(s['task:x']).toBe('done');
+    expect(s[`prayer:${D}:subuh`]).toBe('done');
+    expect(s[`prayer:${D}:dzuhur`]).toBe('next');
+  });
+
+  it('now/past/upcoming di tepi mulai dan selesai', () => {
+    const src = noPrayer({ routines: [kelas('mtk', '07:00', 90)] });
+    const at = (m: number) => agendaFor(D, src, wib(D, m))[0].status;
+    expect(at(hm(6, 59))).toBe('next');
+    expect(at(hm(7))).toBe('now');
+    expect(at(hm(8, 29))).toBe('now');
+    expect(at(hm(8, 30))).toBe('past');
+  });
+
+  it('dua item bertumpuk sama-sama now, tanpa next', () => {
+    const items = agendaFor(
+      D,
+      noPrayer({
+        routines: [kelas('a', '07:00', 90), routine({ id: 'b', startTime: '08:00' }), routine({ id: 'c' })]
+      }),
+      wib(D, hm(8, 15))
+    );
+    expect(items.map((i) => i.status)).toEqual(['now', 'now', 'upcoming']);
+  });
+
+  it('tanpa now: item pertama yang belum lewat = next, termasuk sholat', () => {
+    const items = agendaFor(
+      D,
+      sources({ routines: [kelas('mtk', '07:00', 90), kelas('ipa', '13:00', 60)] }),
+      wib(D, hm(11, 30))
+    );
+    const s = byKey(items, (i) => i.status);
+    expect(s[`routine:mtk:${D}`]).toBe('past');
+    expect(s[`prayer:${D}:dzuhur`]).toBe('next');
+    expect(s[`routine:ipa:${D}`]).toBe('upcoming');
+    expect(items.filter((i) => i.status === 'next')).toHaveLength(1);
+  });
+
+  it('item now yang sudah done tidak menghalangi next', () => {
+    const items = agendaFor(
+      D,
+      noPrayer({
+        routines: [kelas('a', '07:00', 90), routine({ id: 'b', startTime: '09:00' })],
+        completions: [completion('a', D)]
+      }),
+      wib(D, hm(8))
+    );
+    expect(items.map((i) => i.status)).toEqual(['done', 'next']);
+  });
+
+  it('tanggal lalu: semua past kecuali done; tanggal depan: upcoming tanpa next', () => {
+    const prev = addDays(D, -1);
+    const src = sources({ routines: [routine({ id: 'a' })], prayerLogs: [prayerLog(prev, 'subuh')] });
+    const past = agendaFor(prev, src, wib(D, hm(3)));
+    expect(byKey(past, (i) => i.status)).toEqual({
+      [`prayer:${prev}:subuh`]: 'done',
+      [`prayer:${prev}:dzuhur`]: 'past',
+      [`prayer:${prev}:ashar`]: 'past',
+      [`routine:a:${prev}`]: 'past',
+      [`prayer:${prev}:maghrib`]: 'past',
+      [`prayer:${prev}:isya`]: 'past'
+    });
+    const future = agendaFor(addDays(D, 1), src, wib(D, hm(23)));
+    expect(new Set(future.map((i) => i.status))).toEqual(new Set(['upcoming']));
+  });
+});
+
+describe('agendaFor: bentrok, bertepatan sholat, lane', () => {
+  it('dua kelas beririsan → conflict; bersentuhan → tidak; kelas vs sholat → tidak', () => {
+    const items = agendaFor(
+      D,
+      sources({
+        routines: [
+          kelas('a', '07:00', 90),
+          kelas('b', '08:00', 60),
+          kelas('c', '09:00', 30),
+          kelas('d', fromMinutes(T.dzuhur - 10), 30)
+        ]
+      }),
+      wib(D, hm(3))
+    );
+    const conflict = byKey(items, (i) => i.conflict);
+    expect(conflict[`routine:a:${D}`]).toBe(true);
+    expect(conflict[`routine:b:${D}`]).toBe(true);
+    expect(conflict[`routine:c:${D}`]).toBe(false);
+    expect(conflict[`routine:d:${D}`]).toBe(false);
+    expect(conflict[`prayer:${D}:dzuhur`]).toBe(false);
+  });
+
+  it('bertepatan dengan blok 15 menit sholat, bukan rentang fikih', () => {
+    const items = agendaFor(
+      D,
+      sources({ routines: [kelas('siang', '11:30', 60), kelas('sore', '13:00', 60)] }),
+      wib(D, hm(3))
+    );
+    const overlap = byKey(items, (i) => i.overlapsPrayer);
+    expect(overlap[`routine:siang:${D}`]).toBe('dzuhur');
+    expect(overlap[`routine:sore:${D}`]).toBeNull();
+    expect(overlap[`prayer:${D}:dzuhur`]).toBeNull();
+  });
+
+  it('beririsan dengan dua blok sholat → yang paling awal; bersentuhan tidak dihitung', () => {
+    const prayers = [...agendaFor(D, sources(), wib(D, hm(3)))].reverse();
+    expect(prayerOverlap({ start: hm(11), end: hm(16) }, prayers)).toBe('dzuhur');
+    expect(prayerOverlap({ start: T.ashar - 10, end: T.ashar }, prayers)).toBeNull();
+    expect(prayerOverlap({ start: T.ashar + 14, end: T.ashar + 20 }, prayers)).toBe('ashar');
+  });
+
+  it('lane: kelas bertumpuk 0/1 dari 2; sholat 0 dari 1', () => {
+    const items = agendaFor(
+      D,
+      sources({ routines: [kelas('a', '07:00', 90), kelas('b', '08:00', 60)] }),
+      wib(D, hm(3))
+    );
+    const lanes = byKey(items, (i) => `${i.lane}/${i.laneCount}`);
+    expect(lanes[`routine:a:${D}`]).toBe('0/2');
+    expect(lanes[`routine:b:${D}`]).toBe('1/2');
+    expect(lanes[`prayer:${D}:subuh`]).toBe('0/1');
+  });
+
+  it('markConflicts mempertahankan urutan masukan', () => {
+    const items = agendaFor(D, sources({ routines: [kelas('a', '07:00', 90)] }), wib(D, hm(3)));
+    const reversed = [...items].reverse();
+    expect(markConflicts(reversed).map((i) => i.key)).toEqual(reversed.map((i) => i.key));
+  });
+});
+
+describe('agendaFor: zona perangkat ≠ zona lokasi (§7.5)', () => {
+  const NEXT = addDays(D, 1);
+  const T2 = prayerTimes(NEXT, JKT);
+
+  it('lokasi Jakarta, perangkat New York (EDT, −11 jam): jam New York, sourceId tanggal Jakarta', () => {
+    const items = agendaFor(
+      D,
+      sources({ deviceTimeZone: 'America/New_York' }),
+      new Date('2026-10-26T12:00:00-04:00')
+    );
+    expect(prayerStarts(items)).toEqual([
+      `${D}:dzuhur@${T.dzuhur - 660}`,
+      `${D}:ashar@${T.ashar - 660}`,
+      `${D}:maghrib@${T.maghrib - 660}`,
+      `${D}:isya@${T.isya - 660}`,
+      `${NEXT}:subuh@${T2.subuh - 660 + 1440}`
+    ]);
+  });
+
+  it('New York: log Subuh Jakarta D+1 → item agenda tanggal D berstatus done', () => {
+    const src = sources({ deviceTimeZone: 'America/New_York', prayerLogs: [prayerLog(NEXT, 'subuh')] });
+    const items = agendaFor(D, src, new Date('2026-10-26T18:00:00-04:00'));
+    expect(items.find((i) => i.sourceId === `${NEXT}:subuh`)!.status).toBe('done');
+  });
+
+  it('New York saat DST berakhir: jumlah sholat per tanggal perangkat ≠ 5', () => {
+    const nov1 = agendaFor(
+      '2026-11-01',
+      sources({ deviceTimeZone: 'America/New_York', today: '2026-11-01' }),
+      new Date('2026-11-01T12:00:00-05:00')
+    );
+    expect(nov1.filter((i) => i.source === 'prayer').map((i) => i.sourceId)).toEqual([
+      '2026-11-01:dzuhur',
+      '2026-11-01:ashar',
+      '2026-11-01:maghrib',
+      '2026-11-01:isya',
+      '2026-11-02:subuh',
+      '2026-11-02:dzuhur'
+    ]);
+    const nov2 = agendaFor(
+      '2026-11-02',
+      sources({ deviceTimeZone: 'America/New_York', today: '2026-11-02' }),
+      new Date('2026-11-02T12:00:00-05:00')
+    );
+    expect(nov2.filter((i) => i.source === 'prayer').map((i) => i.sourceId)).toEqual([
+      '2026-11-02:ashar',
+      '2026-11-02:maghrib',
+      '2026-11-02:isya',
+      '2026-11-03:subuh',
+      '2026-11-03:dzuhur'
+    ]);
+  });
+
+  it('lokasi Jakarta, perangkat Kiritimati (UTC+14, +7 jam)', () => {
+    const PREV = addDays(D, -1);
+    const T0 = prayerTimes(PREV, JKT);
+    const src = sources({ deviceTimeZone: 'Pacific/Kiritimati', prayerLogs: [prayerLog(PREV, 'isya')] });
+    const items = agendaFor(D, src, new Date('2026-10-26T12:00:00+14:00'));
+    expect(prayerStarts(items)).toEqual([
+      `${PREV}:maghrib@${T0.maghrib + 420 - 1440}`,
+      `${PREV}:isya@${T0.isya + 420 - 1440}`,
+      `${D}:subuh@${T.subuh + 420}`,
+      `${D}:dzuhur@${T.dzuhur + 420}`,
+      `${D}:ashar@${T.ashar + 420}`
+    ]);
+    expect(items.find((i) => i.sourceId === `${PREV}:isya`)!.status).toBe('done');
+  });
+
+  it('zona perangkat = zona lokasi (atau offset sama) → identik dengan prayerTimes(D)', () => {
+    const expected = (['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'] as const).map(
+      (p) => `${D}:${p}@${T[p]}`
+    );
+    expect(prayerStarts(agendaFor(D, sources(), wib(D, hm(3))))).toEqual(expected);
+    expect(prayerStarts(agendaFor(D, sources({ deviceTimeZone: 'Asia/Pontianak' }), wib(D, hm(3))))).toEqual(
+      expected
+    );
+  });
+});
+
+describe('agendaWindow', () => {
+  const item = (i: number, status: AgendaStatus): AgendaItem => ({
+    key: `k${i}`,
+    source: 'routine',
+    sourceId: `r${i}`,
+    date: D,
+    start: hm(7 + i),
+    end: hm(8 + i),
+    title: `Item ${i}`,
+    meta: '',
+    subjectId: null,
+    status,
+    conflict: false,
+    overlapsPrayer: null,
+    lane: 0,
+    laneCount: 1
+  });
+  const list = (statuses: AgendaStatus[]) => statuses.map((s, i) => item(i, s));
+  const keys = (w: AgendaWindow) => w.visible.map((i) => i.key);
+  const upcoming = (n: number) => Array<AgendaStatus>(n).fill('upcoming');
+
+  it('≤ 6 item → semua, tidak bisa diperluas', () => {
+    const items = list(['past', 'now', ...upcoming(4)]);
+    expect(agendaWindow(items, hm(8, 30))).toEqual({ visible: items, hiddenCount: 0, expandable: false });
+  });
+
+  it('semua belum → 6 pertama', () => {
+    const w = agendaWindow(list(['next', ...upcoming(8)]), hm(6));
+    expect(keys(w)).toEqual(['k0', 'k1', 'k2', 'k3', 'k4', 'k5']);
+    expect(w).toMatchObject({ hiddenCount: 3, expandable: true });
+  });
+
+  it('semua lewat → 6 terakhir', () => {
+    const w = agendaWindow(list(Array<AgendaStatus>(9).fill('past')), hm(23));
+    expect(keys(w)).toEqual(['k3', 'k4', 'k5', 'k6', 'k7', 'k8']);
+  });
+
+  it('now di tengah → 2 sebelum + jangkar + 3 sesudah', () => {
+    const w = agendaWindow(list(['past', 'past', 'past', 'past', 'now', ...upcoming(4)]), hm(11, 30));
+    expect(keys(w)).toEqual(['k2', 'k3', 'k4', 'k5', 'k6', 'k7']);
+  });
+
+  it('jangkar dekat akhir → digeser mundur, tetap 6', () => {
+    const w = agendaWindow(list([...Array<AgendaStatus>(8).fill('past'), 'now']), hm(15, 30));
+    expect(keys(w)).toEqual(['k3', 'k4', 'k5', 'k6', 'k7', 'k8']);
+  });
+
+  it('item done yang masih berlangsung menjadi jangkar; next sesudahnya tetap terlihat', () => {
+    // k3 = 10.00–11.00 done, sekarang 10.30, k4 = next.
+    const w = agendaWindow(list(['past', 'past', 'past', 'done', 'next', ...upcoming(4)]), hm(10, 30));
+    expect(keys(w)).toEqual(['k1', 'k2', 'k3', 'k4', 'k5', 'k6']);
+  });
+
+  it('kasus tepi yang diterima: next di jangkar+4 tidak terlihat', () => {
+    // k3 berlangsung dan done, k4–k6 sudah done lebih awal, k7 = next.
+    const statuses: AgendaStatus[] = [
+      'past',
+      'past',
+      'past',
+      'done',
+      'done',
+      'done',
+      'done',
+      'next',
+      'upcoming'
+    ];
+    const w = agendaWindow(list(statuses), hm(10, 30));
+    expect(keys(w)).toEqual(['k1', 'k2', 'k3', 'k4', 'k5', 'k6']);
+    expect(w.expandable).toBe(true);
+  });
+});
+
+describe('isFaded dan agendaPrayerStatuses', () => {
+  const faded = (date: LocalDate, now: Date, logs: PrayerLog[] = []) => {
+    const items = agendaFor(date, sources({ prayerLogs: logs }), now);
+    const statuses = agendaPrayerStatuses(items, logs, now, JKT);
+    return Object.fromEntries(items.map((i) => [i.sourceId, isFaded(i, statuses)]));
+  };
+
+  it('sholat mengikuti fikih, bukan blok 15 menit', () => {
+    expect(T.dzuhur + PRAYER_BLOCK_MIN).toBeLessThanOrEqual(hm(12));
+    expect(faded(D, wib(D, hm(12)))[`${D}:dzuhur`]).toBe(false);
+    expect(faded(D, wib(D, hm(12)), [prayerLog(D, 'dzuhur')])[`${D}:dzuhur`]).toBe(true);
+    expect(faded(D, wib(D, T.ashar))[`${D}:dzuhur`]).toBe(true);
+    expect(faded(D, wib(D, hm(6)))[`${D}:subuh`]).toBe(true);
+  });
+
+  it('Isya kemarin pada 01.00 belum dicatat → tidak pudar', () => {
+    const prev = addDays(D, -1);
+    expect(faded(prev, wib(D, hm(1)))[`${prev}:isya`]).toBe(false);
+    expect(faded(prev, wib(D, hm(1)))[`${prev}:maghrib`]).toBe(true);
+  });
+
+  it('non-sholat: past → pudar; done belum lewat, now, upcoming → tidak', () => {
+    const at = (m: number, done = false) => {
+      const src = noPrayer({
+        routines: [kelas('mtk', '07:00', 90)],
+        completions: done ? [completion('mtk', D)] : []
+      });
+      return isFaded(agendaFor(D, src, wib(D, m))[0], new Map());
+    };
+    expect(at(hm(9))).toBe(true);
+    expect(at(hm(8), true)).toBe(false);
+    expect(at(hm(8))).toBe(false);
+    expect(at(hm(6))).toBe(false);
+  });
+
+  it('perangkat New York: status diambil dari tanggal lokasi tiap item', () => {
+    const next = addDays(D, 1);
+    const now = new Date('2026-10-26T18:00:00-04:00'); // = 27 Okt 05.00 WIB
+    const logs = [prayerLog(D, 'maghrib')];
+    const items = agendaFor(D, sources({ deviceTimeZone: 'America/New_York', prayerLogs: logs }), now);
+    expect(Object.fromEntries(agendaPrayerStatuses(items, logs, now, JKT))).toEqual({
+      [`${D}:dzuhur`]: 'missed',
+      [`${D}:ashar`]: 'missed',
+      [`${D}:maghrib`]: 'done',
+      [`${D}:isya`]: 'missed',
+      [`${next}:subuh`]: 'now'
+    });
   });
 });

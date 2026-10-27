@@ -3,6 +3,7 @@ import {
   addDays,
   dayNumber,
   fromMinutes,
+  fromZoned,
   isValidLocalDate,
   isValidLocalTime,
   minutesSinceMidnight,
@@ -11,7 +12,8 @@ import {
   toLocalDate,
   toLocalTime,
   toMinutes,
-  toZoned
+  toZoned,
+  zoneOffsetMinutes
 } from './dates';
 
 describe('isValidLocalDate', () => {
@@ -146,5 +148,47 @@ describe('toZoned', () => {
       date: '2026-10-18',
       minutes: 0
     });
+  });
+});
+
+describe('fromZoned', () => {
+  it('kebalikan toZoned di Jakarta', () => {
+    for (const minutes of [0, 4 * 60 + 30, 23 * 60 + 59]) {
+      const instant = fromZoned('2026-10-26', minutes, 'Asia/Jakarta');
+      expect(toZoned(instant, 'Asia/Jakarta')).toEqual({ date: '2026-10-26', minutes });
+    }
+    expect(fromZoned('2026-10-26', 0, 'Asia/Jakarta').toISOString()).toBe('2026-10-25T17:00:00.000Z');
+  });
+
+  it('New York: jam ganda → kejadian lebih awal, celah → jam setelah celah', () => {
+    const ny = (date: string, minutes: number) => fromZoned(date, minutes, 'America/New_York').toISOString();
+    expect(ny('2026-11-01', 90)).toBe('2026-11-01T05:30:00.000Z');
+    expect(ny('2026-11-01', 59)).toBe('2026-11-01T04:59:00.000Z');
+    expect(ny('2026-11-01', 120)).toBe('2026-11-01T07:00:00.000Z');
+    expect(ny('2026-03-08', 150)).toBe('2026-03-08T07:30:00.000Z');
+    expect(toZoned(new Date('2026-03-08T07:30:00Z'), 'America/New_York')).toEqual({
+      date: '2026-03-08',
+      minutes: 3 * 60 + 30
+    });
+  });
+
+  it('bolak-balik di luar celah, termasuk hari DST', () => {
+    for (const date of ['2026-03-08', '2026-11-01', '2026-07-01']) {
+      for (const minutes of [0, 59, 180, 720, 1439]) {
+        const instant = fromZoned(date, minutes, 'America/New_York');
+        expect(toZoned(instant, 'America/New_York'), `${date} ${minutes}`).toEqual({ date, minutes });
+      }
+    }
+  });
+});
+
+describe('zoneOffsetMinutes', () => {
+  it('lokal − UTC (timur positif)', () => {
+    const instant = new Date('2026-10-26T05:00:00Z');
+    expect(zoneOffsetMinutes(instant, 'Asia/Jakarta')).toBe(420);
+    expect(zoneOffsetMinutes(instant, 'Asia/Makassar')).toBe(480);
+    expect(zoneOffsetMinutes(new Date('2026-01-15T12:00:00Z'), 'America/New_York')).toBe(-300);
+    expect(zoneOffsetMinutes(new Date('2026-07-15T12:00:00Z'), 'America/New_York')).toBe(-240);
+    expect(zoneOffsetMinutes(instant, 'Pacific/Kiritimati')).toBe(840);
   });
 });

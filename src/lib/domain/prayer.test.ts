@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { CITIES } from '$lib/data/cities';
 import { fromMinutes } from './dates';
 import {
+  activePrayer,
   canLogPrayer,
   isNightForTheme,
   nextPrayer,
+  parsePrayerLogId,
   prayerLogId,
   prayerStatus,
   prayerTimes,
   toPrayerConfig,
+  zoneMismatch,
   type PrayerConfig
 } from './prayer';
 import { defaultSettings } from './settings';
@@ -182,5 +185,53 @@ describe('toPrayerConfig', () => {
       location: JKT.location,
       prayer: s.prayer
     });
+  });
+});
+
+describe('prayerLogId / parsePrayerLogId', () => {
+  it('bolak-balik', () => {
+    expect(parsePrayerLogId(prayerLogId(DAY, 'isya'))).toEqual({ date: DAY, prayer: 'isya' });
+  });
+
+  it.each(['', '2026-10-17', '2026-10-17:fajr', '2026-02-30:subuh', 'x:subuh', '2026-10-17:subuh:1'])(
+    'id rusak %j → null',
+    (id) => {
+      expect(parsePrayerLogId(id)).toBeNull();
+    }
+  );
+});
+
+describe('activePrayer', () => {
+  const prev = '2026-10-16';
+
+  it('sholat dalam rentang fikih beserta tanggal lokasinya', () => {
+    expect(activePrayer(wib(DAY, '05:00'), JKT)).toEqual({ prayer: 'subuh', date: DAY });
+    expect(activePrayer(wib(DAY, '09:00'), JKT)).toBeNull();
+    expect(activePrayer(wib(DAY, '18:00'), JKT)).toEqual({ prayer: 'maghrib', date: DAY });
+    expect(activePrayer(wib(DAY, '20:00'), JKT)).toEqual({ prayer: 'isya', date: DAY });
+  });
+
+  it('00.00–Subuh: Isya tanggal kemarin', () => {
+    expect(activePrayer(wib(DAY, '01:00'), JKT)).toEqual({ prayer: 'isya', date: prev });
+    expect(activePrayer(wib(DAY, '00:00'), JKT)).toEqual({ prayer: 'isya', date: prev });
+    expect(activePrayer(wibAt(DAY, T.subuh - 1), JKT)).toEqual({ prayer: 'isya', date: prev });
+    expect(activePrayer(wibAt(DAY, T.subuh), JKT)).toEqual({ prayer: 'subuh', date: DAY });
+  });
+
+  it('tepi rentang: Terbit → null, Dzuhur → dzuhur', () => {
+    expect(activePrayer(wibAt(DAY, T.terbit), JKT)).toBeNull();
+    expect(activePrayer(wibAt(DAY, T.dzuhur), JKT)).toEqual({ prayer: 'dzuhur', date: DAY });
+  });
+});
+
+describe('zoneMismatch', () => {
+  const now = wib(DAY, '12:00');
+  const jakarta = { timeZone: 'Asia/Jakarta' };
+
+  it('membandingkan offset pada instan now, bukan nama zona', () => {
+    expect(zoneMismatch(jakarta, 'Asia/Jakarta', now)).toBe(false);
+    expect(zoneMismatch(jakarta, 'Asia/Pontianak', now)).toBe(false);
+    expect(zoneMismatch(jakarta, 'Asia/Makassar', now)).toBe(true);
+    expect(zoneMismatch(jakarta, 'America/New_York', now)).toBe(true);
   });
 });

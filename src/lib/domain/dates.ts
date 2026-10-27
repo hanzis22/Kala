@@ -98,3 +98,27 @@ export function toZoned(instant: Date, timeZone: string): { date: LocalDate; min
   const p = Object.fromEntries(fmt.formatToParts(instant).map((x) => [x.type, x.value]));
   return { date: `${p.year}-${p.month}-${p.day}`, minutes: Number(p.hour) * 60 + Number(p.minute) };
 }
+
+/**
+ * Offset zona waktu pada sebuah instan dalam menit = waktu lokal − UTC (timur positif), misal Asia/Jakarta
+ * 420 dan America/New_York −300 (EST) / −240 (EDT). Kebalikan tanda `Date#getTimezoneOffset`.
+ */
+export function zoneOffsetMinutes(instant: Date, timeZone: string): number {
+  const z = toZoned(instant, timeZone);
+  return dayNumber(z.date) * MINUTES_PER_DAY + z.minutes - Math.floor(instant.getTime() / 60_000);
+}
+
+/**
+ * Kebalikan `toZoned`: instan untuk jam dinding `minutes` pada `date` di zona `timeZone`, tidak bergantung
+ * zona perangkat. Offset dicoba dari sebelum dan sesudah tanggal itu; yang dipakai adalah kandidat yang
+ * kembali ke jam dinding yang sama. Jam ganda (DST mundur) → kejadian lebih awal; celah (DST maju) → jam
+ * setelah celah, misal 02.30 New York saat DST mulai = 03.30 EDT (sama dengan Temporal 'compatible').
+ */
+export function fromZoned(date: LocalDate, minutes: Minutes, timeZone: string): Date {
+  const wall = dayNumber(date) * MINUTES_PER_DAY + minutes;
+  const offsetAt = (m: number) => zoneOffsetMinutes(new Date(m * 60_000), timeZone);
+  const before = offsetAt(wall - MINUTES_PER_DAY);
+  const after = offsetAt(wall + MINUTES_PER_DAY);
+  const matches = [wall - before, wall - after].filter((m) => wall - offsetAt(m) === m);
+  return new Date((matches.length > 0 ? Math.min(...matches) : wall - before) * 60_000);
+}

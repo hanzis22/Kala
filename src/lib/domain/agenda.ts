@@ -1,14 +1,30 @@
 /**
  * Logika agenda (PRD §6). Grid timetable F4 memakai `groupOverlaps`; tampilan Hari F5 memakai
  * `dayAgenda`, dan F6 menambah `dayTasks` (blok jadwal pengerjaan + bagian "Tenggat") yang digabung
- * dengan rutin lewat `mergeDay`; `assignLanes` disiapkan untuk tampilan bertumpuk. `agendaFor` dan
- * `markConflicts` menyusul di F2 dan memanggil `dayAgenda` + `dayTasks` untuk memilih kejadian
- * kelas/rutin/kegiatan/tugas.
+ * dengan rutin lewat `mergeDay`; `assignLanes` disiapkan untuk tampilan bertumpuk. F2 menambah agenda
+ * gabungan Hari Ini (`agendaFor`): `dayAgenda` + `dayTasks` + 5 sholat sebagai blok 15 menit di zona
+ * perangkat, dengan status, bentrok (`markConflicts`), dan jendela 6 item (`agendaWindow`).
  */
-import { toMinutes } from './dates';
+import { addDays, fromZoned, MINUTES_PER_DAY, toMinutes, toZoned } from './dates';
+import { parsePrayerLogId, prayerLogId, prayerStatus, prayerTimes, type PrayerConfig } from './prayer';
 import { isSupportedRoutine, occurrencesBetween, skippedBetween, validateTimeSlot } from './recurrence';
 import { compareCarriedOver, compareTasks, isCarriedOver } from './tasks';
-import type { Id, LocalDate, LocalTime, Minutes, Routine, Subject, Task } from './types';
+import {
+  PRAYERS,
+  type AgendaItem,
+  type AgendaStatus,
+  type Completion,
+  type Id,
+  type LocalDate,
+  type LocalTime,
+  type Minutes,
+  type PrayerLog,
+  type PrayerName,
+  type PrayerStatus,
+  type Routine,
+  type Subject,
+  type Task
+} from './types';
 
 export interface Span {
   start: Minutes;
@@ -212,4 +228,245 @@ export function mergeDay(routines: readonly DayItem[], tasks: readonly TaskDayIt
       typeRank(a) - typeRank(b) ||
       compareIds(rowId(a), rowId(b))
   );
+}
+
+// ---------- Agenda gabungan Hari Ini (F2) ----------
+
+/** Rentang item sholat di agenda: [awal waktu, awal waktu + 15 menit), bukan rentang fikih. */
+export const PRAYER_BLOCK_MIN = 15;
+
+export interface AgendaSources {
+  /** Sudah tanpa deletedAt. */
+  routines: readonly Routine[];
+  subjects: readonly Pick<Subject, 'id' | 'name'>[];
+  tasks: readonly Task[];
+  completions: readonly Completion[];
+  prayerLogs: readonly PrayerLog[];
+  /** null = lokasi belum dipilih → tanpa item sholat. */
+  prayer: PrayerConfig | null;
+  /** Zona perangkat (IANA), dari store now. */
+  deviceTimeZone: string;
+  /** Dari store today. */
+  today: LocalDate;
+}
+
+interface Draft {
+  item: Omit<AgendaItem, 'status' | 'conflict' | 'overlapsPrayer' | 'lane' | 'laneCount'>;
+  done: boolean;
+}
+
+/**
+ * Awal waktu sholat yang jatuh pada tanggal perangkat `date`. Jadwal tanggal lokasi D−1, D, dan D+1
+ * diubah ke instan lalu ke zona perangkat, sehingga jumlahnya bisa ≠ 5 jika zonanya berbeda.
+ */
+function prayersOnDeviceDate(date: LocalDate, config: PrayerConfig, deviceTimeZone: string) {
+  const tz = config.location.timeZone;
+  const result: { locDate: LocalDate; prayer: PrayerName; start: Minutes }[] = [];
+  for (const locDate of [addDays(date, -1), date, addDays(date, 1)]) {
+    const t = prayerTimes(locDate, config);
+    for (const prayer of PRAYERS) {
+      const z = toZoned(fromZoned(locDate, t[prayer], tz), deviceTimeZone);
+      if (z.date === date) result.push({ locDate, prayer, start: z.minutes });
+    }
+  }
+  return result;
+}
+
+const sourceRank = (item: Pick<AgendaItem, 'source'>) =>
+  item.source === 'prayer' ? 0 : item.source === 'task' ? 2 : 1;
+
+const overlaps = (a: Span, b: Span) => a.start < b.end && b.start < a.end;
+
+/**
+ * Agenda satu tanggal (PRD §F2, §7.4, §7.5): kelas/rutin/kegiatan (tanpa kejadian yang dilewati), blok
+ * jadwal tugas, dan sholat sebagai blok `PRAYER_BLOCK_MIN` menit di zona perangkat. `sourceId` sholat =
+ * ID PrayerLog bertanggal lokasi. Urut mulai, selesai, sholat, kelas/rutin/kegiatan, tugas, lalu sourceId.
+ * Status: done mengalahkan waktu; hari lalu = past, hari depan = upcoming; hari ini dihitung dari jam
+ * perangkat, boleh lebih dari satu `now`, dan `next` = upcoming pertama hanya jika tidak ada `now`.
+ */
+export function agendaFor(date: LocalDate, sources: AgendaSources, now: Date): AgendaItem[] {
+  const drafts: Draft[] = [];
+
+  const completed = new Set(sources.completions.map((c) => `${c.routineId}:${c.date}`));
+  for (const item of dayAgenda(date, sources)) {
+    if (item.skipped) continue;
+    const { routine } = item;
+    drafts.push({
+      item: {
+        key: `routine:${routine.id}:${date}`,
+        source: routine.kind,
+        sourceId: routine.id,
+        date,
+        start: item.start,
+        end: item.end,
+        title: item.title,
+        meta: routine.location ?? '',
+        subjectId: routine.subjectId
+      },
+      done: completed.has(`${routine.id}:${date}`)
+    });
+  }
+
+  for (const item of dayTasks(date, sources.tasks, sources.today).scheduled) {
+    drafts.push({
+      item: {
+        key: `task:${item.task.id}`,
+        source: 'task',
+        sourceId: item.task.id,
+        date,
+        start: item.start,
+        end: item.end,
+        title: item.title,
+        meta: '',
+        subjectId: item.task.subjectId
+      },
+      done: item.done
+    });
+  }
+
+  if (sources.prayer) {
+    const logged = new Set(sources.prayerLogs.map((l) => prayerLogId(l.date, l.prayer)));
+    for (const p of prayersOnDeviceDate(date, sources.prayer, sources.deviceTimeZone)) {
+      const id = prayerLogId(p.locDate, p.prayer);
+      drafts.push({
+        item: {
+          key: `prayer:${id}`,
+          source: 'prayer',
+          sourceId: id,
+          date,
+          start: p.start,
+          end: Math.min(p.start + PRAYER_BLOCK_MIN, MINUTES_PER_DAY),
+          title: p.prayer,
+          meta: '',
+          subjectId: null
+        },
+        done: logged.has(id)
+      });
+    }
+  }
+
+  drafts.sort(
+    ({ item: a }, { item: b }) =>
+      a.start - b.start ||
+      a.end - b.end ||
+      sourceRank(a) - sourceRank(b) ||
+      compareIds(a.sourceId, b.sourceId)
+  );
+
+  const nowMin = toZoned(now, sources.deviceTimeZone).minutes;
+  const statusOf = ({ item, done }: Draft): AgendaStatus => {
+    if (done) return 'done';
+    if (date < sources.today) return 'past';
+    if (date > sources.today) return 'upcoming';
+    if (item.start <= nowMin && nowMin < item.end) return 'now';
+    return item.end <= nowMin ? 'past' : 'upcoming';
+  };
+  const statuses = drafts.map(statusOf);
+  if (date === sources.today && !statuses.includes('now')) {
+    const first = statuses.indexOf('upcoming');
+    if (first !== -1) statuses[first] = 'next';
+  }
+
+  return markConflicts(
+    drafts.map(({ item }, i): AgendaItem => ({
+      ...item,
+      status: statuses[i],
+      conflict: false,
+      overlapsPrayer: null,
+      lane: 0,
+      laneCount: 1
+    }))
+  );
+}
+
+/**
+ * Sholat paling awal yang blok 15 menitnya beririsan dengan `item` (§7.4), atau null. Bersentuhan tidak
+ * dihitung. Rentang fikih tidak dipakai: Dzuhur–Ashar akan menandai hampir semua kelas siang.
+ */
+export function prayerOverlap(item: Span, prayers: readonly AgendaItem[]): PrayerName | null {
+  let hit: AgendaItem | null = null;
+  for (const p of prayers) {
+    if (p.source !== 'prayer' || !overlaps(item, p)) continue;
+    if (hit === null || p.start < hit.start) hit = p;
+  }
+  return hit === null ? null : (parsePrayerLogId(hit.sourceId)?.prayer ?? null);
+}
+
+/**
+ * Mengisi `conflict` (irisan dengan item non-sholat lain; bersentuhan bukan bentrok, item done tetap
+ * dihitung), `overlapsPrayer`, dan lane untuk item non-sholat. Sholat selalu tanpa bentrok, lane 0 dari 1.
+ * Urutan masukan dipertahankan.
+ */
+export function markConflicts<T extends AgendaItem>(items: readonly T[]): T[] {
+  const prayers = items.filter((i) => i.source === 'prayer');
+  const others = items.filter((i) => i.source !== 'prayer');
+  const lanes = new Map(assignLanes(others).map((i) => [i.key, i]));
+  return items.map((item) => {
+    if (item.source === 'prayer') {
+      return { ...item, conflict: false, overlapsPrayer: null, lane: 0, laneCount: 1 };
+    }
+    const lane = lanes.get(item.key);
+    return {
+      ...item,
+      conflict: others.some((o) => o !== item && overlaps(o, item)),
+      overlapsPrayer: prayerOverlap(item, prayers),
+      lane: lane?.lane ?? 0,
+      laneCount: lane?.laneCount ?? 1
+    };
+  });
+}
+
+export interface AgendaWindow {
+  visible: AgendaItem[];
+  hiddenCount: number;
+  /** false jika semua item sudah tampil (tombol "Lihat semua" tidak dirender). */
+  expandable: boolean;
+}
+
+/**
+ * Jendela `size` item di sekitar jam sekarang untuk agenda hari ini. Jangkar: item `now` pertama; jika
+ * tidak ada, item pertama dengan `end > nowMin` (item done yang masih berlangsung ikut dihitung); jika
+ * semua sudah lewat, `size` item terakhir. Jendela mulai maksimal 2 item sebelum jangkar dan digeser
+ * mundur di akhir daftar.
+ */
+export function agendaWindow(items: readonly AgendaItem[], nowMin: Minutes, size = 6): AgendaWindow {
+  if (items.length <= size) return { visible: [...items], hiddenCount: 0, expandable: false };
+  let anchor = items.findIndex((i) => i.status === 'now');
+  if (anchor === -1) anchor = items.findIndex((i) => i.end > nowMin);
+  const last = items.length - size;
+  const start = anchor === -1 ? last : Math.min(Math.max(0, anchor - 2), last);
+  return { visible: items.slice(start, start + size), hiddenCount: last, expandable: true };
+}
+
+/** Status fikih per ID PrayerLog untuk item sholat di agenda (tanggal lokasinya bisa D−1, D, atau D+1). */
+export function agendaPrayerStatuses(
+  items: readonly AgendaItem[],
+  logs: readonly PrayerLog[],
+  now: Date,
+  config: PrayerConfig
+): ReadonlyMap<string, PrayerStatus> {
+  const byDate = new Map<LocalDate, Record<PrayerName, PrayerStatus>>();
+  const result = new Map<string, PrayerStatus>();
+  for (const item of items) {
+    if (item.source !== 'prayer') continue;
+    const id = parsePrayerLogId(item.sourceId);
+    if (id === null) continue;
+    let statuses = byDate.get(id.date);
+    if (!statuses) {
+      statuses = prayerStatus(id.date, logs, now, config);
+      byDate.set(id.date, statuses);
+    }
+    result.set(item.sourceId, statuses[id.prayer]);
+  }
+  return result;
+}
+
+/**
+ * Gaya pudar (PRD §F2, tanpa opacity pada teks). Non-sholat: pudar jika sudah lewat. Sholat mengikuti
+ * fikih: pudar hanya jika sudah dicatat atau rentangnya habis, walau blok 15 menitnya sudah lewat.
+ */
+export function isFaded(item: AgendaItem, prayerStatuses: ReadonlyMap<string, PrayerStatus>): boolean {
+  if (item.source !== 'prayer') return item.status === 'past';
+  const status = prayerStatuses.get(item.sourceId);
+  return status === 'done' || status === 'missed';
 }
