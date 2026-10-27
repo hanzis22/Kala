@@ -27,7 +27,8 @@
     /** Filter Selesai: tampilkan tanggal selesai. */
     showDone?: boolean;
     onedit: (task: Task) => void;
-    ontoggle: (task: Task, checked: boolean) => void;
+    /** Tanpa ontoggle: baris read-only, centang tidak dirender (Hari /jadwal sampai F2). */
+    ontoggle?: (task: Task, checked: boolean) => void;
   } = $props();
 
   const t = copy.tasks;
@@ -64,16 +65,18 @@
     {@const doneOn = doneText(task)}
     {@const subject = task.subjectId === null ? null : subjectNames.get(task.subjectId)}
     <li data-task-id={task.id} class="flex items-start gap-1 border-b border-line last:border-b-0">
-      <label class="flex size-11 shrink-0 cursor-pointer items-center justify-center self-center">
-        <input
-          type="checkbox"
-          data-part="check"
-          class="size-5 accent-brand"
-          checked={done}
-          aria-label={done ? t.aria.markUndone(task.title) : t.aria.markDone(task.title)}
-          onchange={(e) => ontoggle(task, e.currentTarget.checked)}
-        />
-      </label>
+      {#if ontoggle}
+        <label class="flex size-11 shrink-0 cursor-pointer items-center justify-center self-center">
+          <input
+            type="checkbox"
+            data-part="check"
+            class="size-5 accent-brand"
+            checked={done}
+            aria-label={done ? t.aria.markUndone(task.title) : t.aria.markDone(task.title)}
+            onchange={(e) => ontoggle(task, e.currentTarget.checked)}
+          />
+        </label>
+      {/if}
       <button
         type="button"
         data-part="edit"

@@ -183,8 +183,16 @@ export const copy = {
     dayToday: 'Hari ini',
     dayPrev: 'Hari sebelumnya',
     dayNext: 'Hari berikutnya',
-    dayEmpty: 'Tidak ada kelas, rutin, atau kegiatan di hari ini.',
-    kindTag: { class: 'Kelas', routine: 'Rutin', event: 'Kegiatan' } satisfies Record<RoutineKind, string>,
+    dayEmpty: 'Tidak ada kelas, rutin, kegiatan, atau jadwal tugas di hari ini.',
+    kindTag: { class: 'Kelas', routine: 'Rutin', event: 'Kegiatan', task: 'Tugas' } satisfies Record<
+      RoutineKind | 'task',
+      string
+    >,
+    dueToday: 'Tenggat hari ini',
+    /** day = '28 Okt' */
+    dueOn: (day: string) => `Tenggat ${day}`,
+    dayTaskLabel: (title: string, time: string, done: boolean) =>
+      `${title}, tugas, ${time}${done ? ', selesai' : ''}. Ubah`,
     overridden: 'Jam diubah',
     skipped: 'Dilewati',
     restore: 'Kembalikan',
