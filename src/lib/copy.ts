@@ -4,8 +4,8 @@
  */
 import type { TaskRepoError } from '$lib/data/repo/tasks';
 import type { Weekday } from '$lib/domain/recurrence';
-import type { TaskError } from '$lib/domain/tasks';
-import type { PrayerName, RoutineKind } from '$lib/domain/types';
+import type { TaskError, TaskFilter } from '$lib/domain/tasks';
+import type { PrayerName, Priority, RoutineKind, TaskType } from '$lib/domain/types';
 
 export const copy = {
   appName: 'Kala',
@@ -352,6 +352,78 @@ export const copy = {
   },
 
   tasks: {
+    filterLabel: 'Filter tugas',
+    filters: { all: 'Semua', today: 'Hari ini', week: 'Minggu ini', done: 'Selesai' } satisfies Record<
+      TaskFilter,
+      string
+    >,
+    count: (n: number) => `${n} tugas`,
+    /** Filter Semua memakai ulang copy.pages.tasks.emptyTitle/emptyBody. */
+    empty: {
+      today: {
+        title: 'Tidak ada tugas untuk hari ini',
+        body: 'Tugas yang bertenggat atau dijadwalkan hari ini tampil di sini.'
+      },
+      week: {
+        title: 'Tidak ada tugas minggu ini',
+        body: 'Tugas yang bertenggat atau dijadwalkan minggu ini tampil di sini.'
+      },
+      done: { title: 'Belum ada tugas selesai', body: 'Tugas yang kamu tandai selesai tampil di sini.' }
+    },
+    carriedOverHeading: 'Belum selesai sebelumnya',
+    add: 'Tambah tugas',
+    types: {
+      pr: 'PR',
+      tugas: 'Tugas',
+      ujian: 'Ujian',
+      proyek: 'Proyek',
+      lainnya: 'Lainnya'
+    } satisfies Record<TaskType, string>,
+    priorities: { high: 'Tinggi', medium: 'Sedang', low: 'Rendah' } satisfies Record<Priority, string>,
+    meta: {
+      /** day = 'Sel, 27 Okt', time = '10.00' | null */
+      due: (day: string, time: string | null) => `Tenggat ${day}${time ? ` · ${time}` : ''}`,
+      /** day = 'Sen 26 Okt' */
+      scheduled: (day: string, start: string, end: string) => `Dikerjakan ${day} ${start}–${end}`,
+      doneOn: (day: string) => `Selesai ${day}`,
+      priorityHigh: 'Prioritas tinggi',
+      overdue: 'Lewat tenggat',
+      subjectDeleted: (name: string | null) => (name ? `${name} (dihapus)` : 'Mapel (dihapus)')
+    },
+    aria: {
+      markDone: (title: string) => `Tandai selesai: ${title}`,
+      markUndone: (title: string) => `Batalkan selesai: ${title}`,
+      /** due = 'Sel, 27 Okt · 10.00' | null */
+      row: (title: string, due: string | null, overdue: boolean, done: boolean) =>
+        `${title}${due ? `, tenggat ${due}` : ''}${overdue ? ', lewat tenggat' : ''}${done ? ', selesai' : ''}. Ubah`
+    },
+    sheet: {
+      addTitle: 'Tambah tugas',
+      editTitle: 'Ubah tugas',
+      description: 'Tersimpan hanya di perangkat ini.',
+      title: 'Judul',
+      titlePlaceholder: 'Misal: PR Fisika bab 3',
+      type: 'Jenis',
+      subject: 'Mapel',
+      noSubject: 'Tanpa mapel',
+      priority: 'Prioritas',
+      due: 'Tenggat',
+      dueDate: 'Tanggal tenggat',
+      dueTime: 'Jam tenggat',
+      clearDueTime: 'Hapus jam',
+      schedule: 'Jadwalkan pengerjaan',
+      scheduledDate: 'Tanggal pengerjaan',
+      startTime: 'Jam mulai',
+      duration: 'Durasi (menit)',
+      endsAt: (time: string) => `Selesai pukul ${time}`,
+      notes: 'Catatan',
+      optional: 'opsional',
+      delete: 'Hapus tugas'
+    },
+    clear: 'Bersihkan yang selesai',
+    clearTitle: (n: number) => `Bersihkan ${n} tugas?`,
+    clearBody: 'Tugas yang selesai lebih dari 7 hari lalu akan dihapus.',
+    clearAction: 'Bersihkan',
     deleted: 'Dihapus',
     cleared: (n: number) => `${n} tugas dibersihkan`,
     errors: {
