@@ -193,6 +193,24 @@ Sebagai pelajar, saya ingin mencatat PR, tugas, dan ujian beserta tenggatnya.
 5. "Bersihkan yang selesai" menghapus (soft) tugas selesai yang lebih lama dari 7 hari, dengan konfirmasi.
 6. Field `quadrant` sudah ada di model untuk tampilan Matrix Fase 2. Fase 1 belum menampilkannya.
 
+Keputusan implementasi F6 (27 Okt 2026):
+
+- Filter Semua, Hari ini, dan Minggu ini hanya berisi tugas belum selesai; tugas lewat tenggat ikut di Hari ini dan Minggu ini. Selesai hanya berisi tugas selesai. "Minggu ini" mengikuti `weekStartsOn` (F8.5, default Senin). Pilihan filter tidak disimpan; halaman selalu dibuka di Semua.
+- Urutan (`compareTasks`): bertenggat sebelum tanpa tenggat, `dueDate` naik, `dueTime` naik (tenggat tanpa jam = akhir hari, setelah yang berjam), prioritas tinggi → rendah, jadwal pengerjaan lebih awal (tanpa jadwal di belakang), `createdAt` naik, lalu `id`. Selesai: `completedAt` terbaru di atas, tanpa `completedAt` paling bawah, lalu `id` turun.
+- "Belum selesai sebelumnya" (§F6.2) = tugas belum selesai dengan `scheduledDate` sebelum hari ini dan tenggat kosong atau setelah hari ini. Diurutkan per `scheduledDate`, jam mulai, lalu urutan umum. `dayTasks` mengembalikannya sebagai `carriedOver` hanya jika tanggalnya hari ini; /jadwal belum merendernya (untuk F2). `carriedOver` dan `todayGroups` tetap membuang tugas terhapus.
+- Jadwal pengerjaan diisi lengkap (tanggal + jam + durasi) atau dikosongkan semua. Bawaan saat diaktifkan: hari ini, 16.00, 60 menit. Tenggat dan jadwal di masa lalu boleh; jadwal setelah tenggat juga boleh, tanpa peringatan.
+- Judul wajib, maksimal 100 karakter; catatan maksimal 1000. Panjang dihitung dalam UTF-16 code unit (`.length`), sama untuk `maxlength` input dan validasi repo.
+- Status telat berlabel "Lewat tenggat" (`isOverdue`): turunan, tidak disimpan, tidak pernah merah. Baris daftar hanya menampilkan pill "Prioritas tinggi"; sedang/rendah cukup tercermin di urutan dan sheet. Jenis di sheet memakai `<select>` asli (5 tombol tidak muat di ±320 px).
+- Tugas selesai tetap tampil di tampilan Hari (blok maupun bagian Tenggat), dicoret. Di Hari `/jadwal` tugas read-only sampai F2: tanpa centang, diketuk membuka sheet ubah; label blok "{judul}, tugas, {jam}[, selesai]. Ubah".
+- Mapel terhapus (§F4.4): tugas tampil "{nama} (dihapus)", atau "Mapel (dihapus)" jika record mapel tidak ada. Di sheet ubah, mapel terhapus boleh dipertahankan, tapi tidak bisa dipilih untuk tugas lain.
+- Hapus = soft delete; token urungkan = `deletedAt`. Toast baru menggantikan yang lama, jadi hanya penghapusan terakhir yang bisa diurungkan; token basi membuat `restoreTask` mengembalikan `false` dan toast ditutup tanpa galat. `deleteTask` pada tugas yang sudah terhapus mengembalikan token lama tanpa menulis.
+- Toast urungkan tanpa timer (WCAG 2.2.1): tertutup lewat ✕, Escape (saat fokus di toast), toast berikutnya, atau Urungkan berhasil. ✕/Escape mengembalikan fokus ke elemen asal (`relatedTarget` saat fokus masuk toast) jika masih ada di DOM. Aksi yang gagal membuat toast tetap tampil.
+- Fokus setelah hapus, atau setelah centang yang membuat baris hilang: ke baris berikutnya; jika baris terakhir, ke baris sebelumnya; jika daftar kosong, ke heading. Dihitung pada urutan tampil gabungan (filter Hari ini: grup utama lalu "Belum selesai sebelumnya"). Di Hari `/jadwal`: Tenggat lalu blok tugas, rutin dilewati, dengan heading hari sebagai cadangan. Setelah Urungkan, fokus ke baris yang dipulihkan. Centang yang barisnya tetap tampil tidak memindah fokus.
+- "Bersihkan yang selesai" hanya menyentuh tugas selesai dengan `completedAt` lebih dari 7 × 24 jam sebelum instan sekarang (batas eksklusif, tidak bergantung zona waktu atau DST). Tugas selesai tanpa `completedAt` yang valid tidak pernah dibersihkan. Tombol hanya tampil jika ada yang bisa dibersihkan; hasil 0 tidak memunculkan toast.
+- Sumber waktu: timestamp yang ditulis ke DB (`createdAt`, `updatedAt`, `completedAt`, `deletedAt`/token urungkan, `now` untuk bersihkan) = `new Date().toISOString()` saat aksi, bukan store `now` (presisinya per menit). Store `today`/`now` hanya untuk status turunan.
+- Repo: semua tulis dalam satu transaksi `rw`; `updateTask` selalu mengisi `updatedAt`.
+- Tanpa versi Dexie baru, tanpa index baru, tanpa dependensi baru.
+
 ### F7. Tambah cepat
 
 Sebagai pelajar, saya ingin mengetik satu kalimat dan app mengisi detailnya.
