@@ -189,7 +189,7 @@ Sebagai pelajar, saya ingin mencatat PR, tugas, dan ujian beserta tenggatnya.
    - Bagian "Tenggat" di atas agenda memuat semua tugas bertenggat tanggal itu, kecuali yang sudah tampil sebagai blok jadwal pengerjaan di tanggal yang sama. Tugas lewat tenggat dari hari sebelumnya tidak masuk bagian ini; tempatnya di filter Hari ini di halaman Tugas.
    - **Belum selesai sebelumnya**: tugas belum selesai dengan jadwal pengerjaan sebelum hari ini, apa pun tenggatnya, tampil di filter Hari ini sebagai grup terpisah berlabel netral, tanpa warna merah. Tugas yang sudah lewat tenggat atau bertenggat hari ini tetap di grup utama, jadi tidak ada tugas yang tampil dua kali. Grup yang sama disediakan untuk agenda hari ini (F2).
 3. Filter: Semua, Hari ini, Minggu ini, Selesai. Urutan default: tenggat terdekat, lalu prioritas.
-4. Hapus = soft delete + toast "Dihapus · Urungkan" selama 5 detik.
+4. Hapus = soft delete + toast "Dihapus · Urungkan" sampai ditutup.
 5. "Bersihkan yang selesai" menghapus (soft) tugas selesai yang lebih lama dari 7 hari, dengan konfirmasi.
 6. Field `quadrant` sudah ada di model untuk tampilan Matrix Fase 2. Fase 1 belum menampilkannya.
 

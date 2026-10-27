@@ -5,13 +5,16 @@
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
   import BottomNav from '$lib/components/BottomNav.svelte';
+  import UndoToast from '$lib/components/UndoToast.svelte';
   import UpdateToast from '$lib/components/UpdateToast.svelte';
   import { copy } from '$lib/copy';
   import { now } from '$lib/stores/now.svelte';
   import { prayerLogs } from '$lib/stores/prayerLogs.svelte';
   import { schedule } from '$lib/stores/schedule.svelte';
   import { settings } from '$lib/stores/settings.svelte';
+  import { tasks } from '$lib/stores/tasks.svelte';
   import { theme } from '$lib/stores/theme.svelte';
+  import { toast } from '$lib/stores/toast.svelte';
   import { today } from '$lib/stores/today.svelte';
   import type { LayoutProps } from './$types';
 
@@ -24,6 +27,7 @@
       settings.start(),
       prayerLogs.start(),
       schedule.start(),
+      tasks.start(),
       theme.start()
     ];
     return () => stops.forEach((stop) => stop());
@@ -47,7 +51,10 @@
   <div
     class={[
       'mx-auto min-h-dvh max-w-lg px-5',
-      !onOnboarding && 'pb-[calc(104px+env(safe-area-inset-bottom))]'
+      !onOnboarding &&
+        (toast.current
+          ? 'pb-[calc(248px+env(safe-area-inset-bottom))]'
+          : 'pb-[calc(104px+env(safe-area-inset-bottom))]')
     ]}
   >
     {@render children()}
@@ -60,3 +67,4 @@
 {/if}
 
 <UpdateToast aboveNav={!onOnboarding} />
+<UndoToast aboveNav={!onOnboarding} />

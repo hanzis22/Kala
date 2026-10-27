@@ -2,7 +2,9 @@
  * Semua teks UI Kala. Bahasa Indonesia, sapaan "kamu".
  * Dikumpulkan di sini agar siap i18n (Paraglide, Fase 3).
  */
+import type { TaskRepoError } from '$lib/data/repo/tasks';
 import type { Weekday } from '$lib/domain/recurrence';
+import type { TaskError } from '$lib/domain/tasks';
 import type { PrayerName, RoutineKind } from '$lib/domain/types';
 
 export const copy = {
@@ -347,6 +349,33 @@ export const copy = {
       'not-found': 'Jadwal ini sudah tidak ada.',
       'not-occurrence': 'Tanggal ini sudah tidak ada di jadwal.'
     } as Record<string, string>
+  },
+
+  tasks: {
+    deleted: 'Dihapus',
+    cleared: (n: number) => `${n} tugas dibersihkan`,
+    errors: {
+      'title-required': 'Judul tugas wajib diisi.',
+      'title-too-long': 'Judul tugas maksimal 100 karakter.',
+      'notes-too-long': 'Catatan maksimal 1000 karakter.',
+      'invalid-type': 'Pilih jenis tugas.',
+      'invalid-priority': 'Pilih prioritas.',
+      'invalid-due-date': 'Tanggal tenggat tidak valid.',
+      'invalid-due-time': 'Jam tenggat tidak valid.',
+      'due-time-without-date': 'Isi tanggal tenggat dulu sebelum jamnya.',
+      'schedule-incomplete': 'Lengkapi tanggal, jam mulai, dan durasi pengerjaan.',
+      'invalid-scheduled-date': 'Tanggal pengerjaan tidak valid.',
+      'invalid-time': 'Jam mulai belum diisi.',
+      'duration-range': 'Durasi 5–720 menit.',
+      'past-midnight': 'Pengerjaan harus selesai paling lambat pukul 24.00.',
+      'subject-not-found': 'Mapel ini sudah tidak ada. Pilih mapel lain.',
+      'not-found': 'Tugas ini sudah tidak ada.'
+    } satisfies Record<TaskError | TaskRepoError, string>
+  },
+
+  toast: {
+    undo: 'Urungkan',
+    close: 'Tutup'
   },
 
   moreSettings: {
