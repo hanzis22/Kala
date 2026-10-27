@@ -81,7 +81,7 @@
   </div>
 
   {#if due.length > 0}
-    <div aria-labelledby="day-due-heading" class="flex flex-col gap-1">
+    <div role="group" aria-labelledby="day-due-heading" class="flex flex-col gap-1">
       <h3 id="day-due-heading" class="text-label font-extrabold text-ink">
         {date === today ? t.dueToday : t.dueOn(formatDayMonth(date))}
       </h3>
