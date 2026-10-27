@@ -114,7 +114,9 @@ test('rutin setiap 2 minggu: lewati, kembalikan, pindah jam, ubah mulai tanggal,
   }
   for (const date of ['2026-10-27', '2026-11-10']) {
     await gotoDay(page, date);
-    await expect(dayCard(page)).toContainText('Tidak ada kelas, rutin, atau kegiatan di hari ini.');
+    await expect(dayCard(page)).toContainText(
+      'Tidak ada kelas, rutin, kegiatan, atau jadwal tugas di hari ini.'
+    );
   }
 
   // 2. Lewati 3 Nov → hanya baris "Dilewati"; 20 Okt dan 17 Nov tetap. Kembalikan → muncul lagi.

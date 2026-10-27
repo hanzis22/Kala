@@ -26,5 +26,8 @@ vite.config.ts.timestamp-*
 /test-results
 /playwright-report
 
+# Screenshot review (lokal, tidak di-commit)
+/shots
+
 # Wrangler (uji lokal)
 /.wrangler

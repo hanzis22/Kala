@@ -185,11 +185,31 @@ Keputusan implementasi F5 (25 Okt 2026):
 Sebagai pelajar, saya ingin mencatat PR, tugas, dan ujian beserta tenggatnya.
 
 1. Field: judul (wajib), jenis (PR, tugas, ujian, proyek, lainnya), mapel, **tenggat** (tanggal + jam opsional), **jadwal pengerjaan** (tanggal + jam + durasi, opsional), prioritas (rendah/sedang/tinggi), catatan.
-2. **Tenggat ≠ jadwal pengerjaan.** Tugas masuk agenda pada jadwal pengerjaannya. Jika hanya punya tenggat, tugas tampil di bagian "Tenggat hari ini" di atas agenda, bukan sebagai blok jam.
+2. **Tenggat ≠ jadwal pengerjaan.** Tugas tampil sebagai blok jam di agenda hanya pada jadwal pengerjaannya.
+   - Bagian "Tenggat" di atas agenda memuat semua tugas bertenggat tanggal itu, kecuali yang sudah tampil sebagai blok jadwal pengerjaan di tanggal yang sama. Tugas lewat tenggat dari hari sebelumnya tidak masuk bagian ini; tempatnya di filter Hari ini di halaman Tugas.
+   - **Belum selesai sebelumnya**: tugas belum selesai dengan jadwal pengerjaan sebelum hari ini, apa pun tenggatnya, tampil di filter Hari ini sebagai grup terpisah berlabel netral, tanpa warna merah. Tugas yang sudah lewat tenggat atau bertenggat hari ini tetap di grup utama, jadi tidak ada tugas yang tampil dua kali. Grup yang sama disediakan untuk agenda hari ini (F2).
 3. Filter: Semua, Hari ini, Minggu ini, Selesai. Urutan default: tenggat terdekat, lalu prioritas.
-4. Hapus = soft delete + toast "Dihapus · Urungkan" selama 5 detik.
+4. Hapus = soft delete + toast "Dihapus · Urungkan" sampai ditutup.
 5. "Bersihkan yang selesai" menghapus (soft) tugas selesai yang lebih lama dari 7 hari, dengan konfirmasi.
 6. Field `quadrant` sudah ada di model untuk tampilan Matrix Fase 2. Fase 1 belum menampilkannya.
+
+Keputusan implementasi F6 (27 Okt 2026):
+
+- Filter Semua, Hari ini, dan Minggu ini hanya berisi tugas belum selesai; tugas lewat tenggat ikut di Hari ini dan Minggu ini. Selesai hanya berisi tugas selesai. "Minggu ini" mengikuti `weekStartsOn` (F8.5, default Senin). Pilihan filter tidak disimpan; halaman selalu dibuka di Semua.
+- Urutan (`compareTasks`): bertenggat sebelum tanpa tenggat, `dueDate` naik, `dueTime` naik (tenggat tanpa jam = akhir hari, setelah yang berjam), prioritas tinggi → rendah, jadwal pengerjaan lebih awal (tanpa jadwal di belakang), `createdAt` naik, lalu `id`. Selesai: `completedAt` terbaru di atas, tanpa `completedAt` paling bawah, lalu `id` turun.
+- "Belum selesai sebelumnya" (§F6.2) = tugas belum selesai dengan `scheduledDate` sebelum hari ini dan tenggat kosong atau setelah hari ini. Diurutkan per `scheduledDate`, jam mulai, lalu urutan umum. `dayTasks` mengembalikannya sebagai `carriedOver` hanya jika tanggalnya hari ini; /jadwal belum merendernya (untuk F2). `carriedOver` dan `todayGroups` tetap membuang tugas terhapus.
+- Jadwal pengerjaan diisi lengkap (tanggal + jam + durasi) atau dikosongkan semua. Bawaan saat diaktifkan: hari ini, 16.00, 60 menit. Tenggat dan jadwal di masa lalu boleh; jadwal setelah tenggat juga boleh, tanpa peringatan.
+- Judul wajib, maksimal 100 karakter; catatan maksimal 1000. Panjang dihitung dalam UTF-16 code unit (`.length`), sama untuk `maxlength` input dan validasi repo.
+- Status telat berlabel "Lewat tenggat" (`isOverdue`): turunan, tidak disimpan, tidak pernah merah. Baris daftar hanya menampilkan pill "Prioritas tinggi"; sedang/rendah cukup tercermin di urutan dan sheet. Jenis di sheet memakai `<select>` asli (5 tombol tidak muat di ±320 px).
+- Tugas selesai tetap tampil di tampilan Hari (blok maupun bagian Tenggat), dicoret. Di Hari `/jadwal` tugas read-only sampai F2: tanpa centang, diketuk membuka sheet ubah; label blok "{judul}, tugas, {jam}[, selesai]. Ubah".
+- Mapel terhapus (§F4.4): tugas tampil "{nama} (dihapus)", atau "Mapel (dihapus)" jika record mapel tidak ada. Di sheet ubah, mapel terhapus boleh dipertahankan, tapi tidak bisa dipilih untuk tugas lain.
+- Hapus = soft delete; token urungkan = `deletedAt`. Toast baru menggantikan yang lama, jadi hanya penghapusan terakhir yang bisa diurungkan; token basi membuat `restoreTask` mengembalikan `false` dan toast ditutup tanpa galat. `deleteTask` pada tugas yang sudah terhapus mengembalikan token lama tanpa menulis.
+- Toast urungkan tanpa timer (WCAG 2.2.1): tertutup lewat ✕, Escape (saat fokus di toast), toast berikutnya, atau Urungkan berhasil. ✕/Escape mengembalikan fokus ke elemen asal (`relatedTarget` saat fokus masuk toast) jika masih ada di DOM. Aksi yang gagal membuat toast tetap tampil.
+- Fokus setelah hapus, atau setelah centang yang membuat baris hilang: ke baris berikutnya; jika baris terakhir, ke baris sebelumnya; jika daftar kosong, ke heading. Dihitung pada urutan tampil gabungan (filter Hari ini: grup utama lalu "Belum selesai sebelumnya"). Di Hari `/jadwal`: Tenggat lalu blok tugas, rutin dilewati, dengan heading hari sebagai cadangan. Setelah Urungkan, fokus ke baris yang dipulihkan. Centang yang barisnya tetap tampil tidak memindah fokus.
+- "Bersihkan yang selesai" hanya menyentuh tugas selesai dengan `completedAt` lebih dari 7 × 24 jam sebelum instan sekarang (batas eksklusif, tidak bergantung zona waktu atau DST). Tugas selesai tanpa `completedAt` yang valid tidak pernah dibersihkan. Tombol hanya tampil jika ada yang bisa dibersihkan; hasil 0 tidak memunculkan toast.
+- Sumber waktu: timestamp yang ditulis ke DB (`createdAt`, `updatedAt`, `completedAt`, `deletedAt`/token urungkan, `now` untuk bersihkan) = `new Date().toISOString()` saat aksi, bukan store `now` (presisinya per menit). Store `today`/`now` hanya untuk status turunan.
+- Repo: semua tulis dalam satu transaksi `rw`; `updateTask` selalu mengisi `updatedAt`.
+- Tanpa versi Dexie baru, tanpa index baru, tanpa dependensi baru.
 
 ### F7. Tambah cepat
 

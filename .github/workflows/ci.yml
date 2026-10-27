@@ -32,6 +32,14 @@ jobs:
       - run: pnpm check
       - run: pnpm lint
       - run: pnpm test
+      - name: pnpm test (TZ=America/New_York)
+        run: pnpm test
+        env:
+          TZ: America/New_York
+      - name: pnpm test (TZ=Pacific/Kiritimati)
+        run: pnpm test
+        env:
+          TZ: Pacific/Kiritimati
       - run: pnpm build
 
   e2e:

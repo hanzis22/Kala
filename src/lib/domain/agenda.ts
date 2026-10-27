@@ -1,11 +1,14 @@
 /**
  * Logika agenda (PRD §6). Grid timetable F4 memakai `groupOverlaps`; tampilan Hari F5 memakai
- * `dayAgenda`; `assignLanes` disiapkan untuk tampilan bertumpuk. `agendaFor` dan `markConflicts`
- * menyusul di F2 dan memanggil `dayAgenda` untuk memilih kejadian kelas/rutin/kegiatan.
+ * `dayAgenda`, dan F6 menambah `dayTasks` (blok jadwal pengerjaan + bagian "Tenggat") yang digabung
+ * dengan rutin lewat `mergeDay`; `assignLanes` disiapkan untuk tampilan bertumpuk. `agendaFor` dan
+ * `markConflicts` menyusul di F2 dan memanggil `dayAgenda` + `dayTasks` untuk memilih kejadian
+ * kelas/rutin/kegiatan/tugas.
  */
 import { toMinutes } from './dates';
-import { isSupportedRoutine, occurrencesBetween, skippedBetween } from './recurrence';
-import type { LocalDate, LocalTime, Minutes, Routine, Subject } from './types';
+import { isSupportedRoutine, occurrencesBetween, skippedBetween, validateTimeSlot } from './recurrence';
+import { compareCarriedOver, compareTasks, isCarriedOver } from './tasks';
+import type { Id, LocalDate, LocalTime, Minutes, Routine, Subject, Task } from './types';
 
 export interface Span {
   start: Minutes;
@@ -128,4 +131,85 @@ export function dayAgenda(
     }
   }
   return items.sort((a, b) => a.start - b.start || a.end - b.end);
+}
+
+export interface TaskDayItem extends Span {
+  task: Task;
+  date: LocalDate;
+  title: string;
+  startTime: LocalTime;
+  durationMin: number;
+  /** Tugas selesai tetap tampil (dicoret). */
+  done: boolean;
+}
+
+export interface DayTasks {
+  /** Blok jadwal pengerjaan di tanggal itu, urut mulai, selesai, lalu id. */
+  scheduled: TaskDayItem[];
+  /** Bagian "Tenggat": urut compareTasks. */
+  due: Task[];
+  /** "Belum selesai sebelumnya" = tugas isCarriedOver(t, today) jika date === today; selain itu []. Urutan: scheduledDate, startTime, compareTasks. */
+  carriedOver: Task[];
+}
+
+const compareIds = (a: Id, b: Id) => (a < b ? -1 : a > b ? 1 : 0);
+
+/**
+ * Tugas di satu tanggal (PRD §F6.2). Tenggat ≠ jadwal pengerjaan: hanya jadwal pengerjaan yang menjadi
+ * blok jam. Bagian "Tenggat" memuat semua tugas bertenggat tanggal itu, kecuali yang sudah tampil
+ * sebagai blok di tanggal yang sama; lewat tenggat dari hari sebelumnya tidak masuk. Slot rusak (data
+ * impor) dilewati diam-diam. Tugas terhapus tidak pernah masuk.
+ */
+export function dayTasks(date: LocalDate, tasks: readonly Task[], today: LocalDate): DayTasks {
+  const live = tasks.filter((t) => t.deletedAt === null);
+  const scheduled: TaskDayItem[] = [];
+  for (const task of live) {
+    const { startTime, durationMin } = task;
+    if (task.scheduledDate !== date || startTime === null || durationMin === null) continue;
+    if (validateTimeSlot(startTime, durationMin) !== null) continue;
+    const start = toMinutes(startTime);
+    scheduled.push({
+      task,
+      date,
+      title: task.title,
+      startTime,
+      durationMin,
+      start,
+      end: start + durationMin,
+      done: task.status === 'done'
+    });
+  }
+  scheduled.sort((a, b) => a.start - b.start || a.end - b.end || compareIds(a.task.id, b.task.id));
+
+  const blocks = new Set(scheduled.map((i) => i.task.id));
+  const due = live.filter((t) => t.dueDate === date && !blocks.has(t.id)).sort(compareTasks);
+  const carriedOver =
+    date === today ? live.filter((t) => isCarriedOver(t, today)).sort(compareCarriedOver) : [];
+  return { scheduled, due, carriedOver };
+}
+
+/** Gabungan untuk tampilan Hari: rutin dulu jika mulai+selesai sama, lalu id. Bukan `DayEntry` di types.ts (entitas prioritas harian). */
+export type DayRow =
+  { type: 'routine'; key: string; item: DayItem } | { type: 'task'; key: string; item: TaskDayItem };
+
+const rowId = (row: DayRow) => (row.type === 'routine' ? row.item.routine.id : row.item.task.id);
+
+/** Kunci `routine:${id}:${skipped}` dan `task:${id}` agar ID rutin dan tugas tidak bertabrakan di keyed each. */
+export function mergeDay(routines: readonly DayItem[], tasks: readonly TaskDayItem[]): DayRow[] {
+  const rows: DayRow[] = [
+    ...routines.map((item): DayRow => ({
+      type: 'routine',
+      key: `routine:${item.routine.id}:${item.skipped}`,
+      item
+    })),
+    ...tasks.map((item): DayRow => ({ type: 'task', key: `task:${item.task.id}`, item }))
+  ];
+  const typeRank = (row: DayRow) => (row.type === 'routine' ? 0 : 1);
+  return rows.sort(
+    (a, b) =>
+      a.item.start - b.item.start ||
+      a.item.end - b.item.end ||
+      typeRank(a) - typeRank(b) ||
+      compareIds(rowId(a), rowId(b))
+  );
 }

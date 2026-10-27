@@ -30,7 +30,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
-    // Zona waktu tetap agar test tanggal lokal deterministik di mesin mana pun.
-    env: { TZ: 'Asia/Jakarta' }
+    // Default Asia/Jakarta agar test tanggal lokal deterministik di mesin mana pun; TZ dari shell
+    // tetap dihormati (CI juga menjalankan New_York dan Kiritimati). `||` agar TZ='' tidak jadi UTC.
+    env: { TZ: process.env.TZ || 'Asia/Jakarta' }
   }
 });

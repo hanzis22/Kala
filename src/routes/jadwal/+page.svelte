@@ -2,6 +2,8 @@
   /**
    * Jadwal (PRD §3, §F4.3, §F5): toggle Hari / Minggu (selalu dibuka di Minggu, tidak disimpan).
    * Aksi utama (brand) satu-satunya: FAB "+" untuk menambah sesi kelas.
+   * Tugas di Hari read-only (§F6.2); hapus dari sheet → fokus ke baris tugas berikutnya → sebelumnya →
+   * heading hari (urutan tampil: Tenggat lalu blok). Urungkan → baris yang dipulihkan. Tanpa timer.
    */
   import BookOpen from '@lucide/svelte/icons/book-open';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -13,18 +15,23 @@
   import OccurrenceSheet, { type OccurrenceTarget } from '$lib/components/OccurrenceSheet.svelte';
   import RoutineList from '$lib/components/RoutineList.svelte';
   import RoutineSheet, { type RoutineSheetMode } from '$lib/components/RoutineSheet.svelte';
+  import TaskSheet, { type TaskSheetMode } from '$lib/components/TaskSheet.svelte';
   import { Button } from '$lib/components/ui/button';
   import * as Sheet from '$lib/components/ui/sheet';
   import { copy } from '$lib/copy';
   import { deleteRoutine, endFromDate, restoreOccurrence } from '$lib/data/repo/routines';
-  import { dayAgenda, type DayItem } from '$lib/domain/agenda';
-  import { addDays } from '$lib/domain/dates';
+  import { deleteTask, restoreTask } from '$lib/data/repo/tasks';
+  import { dayAgenda, dayTasks, mergeDay, type DayItem } from '$lib/domain/agenda';
+  import { addDays, minutesSinceMidnight } from '$lib/domain/dates';
   import { occurrencesBetween, weekdayOf, weeklyDays } from '$lib/domain/recurrence';
   import { buildWeekTimetable, weekStart, type TimetableSlot } from '$lib/domain/timetable';
-  import type { LocalDate, Routine } from '$lib/domain/types';
+  import type { Id, LocalDate, Routine, Task } from '$lib/domain/types';
   import { formatClock, formatDateRange, formatDayMonth } from '$lib/format';
+  import { now } from '$lib/stores/now.svelte';
   import { schedule } from '$lib/stores/schedule.svelte';
   import { settings } from '$lib/stores/settings.svelte';
+  import { tasks } from '$lib/stores/tasks.svelte';
+  import { toast } from '$lib/stores/toast.svelte';
   import { today } from '$lib/stores/today.svelte';
   import WeekTimetable from '$lib/components/WeekTimetable.svelte';
 
@@ -46,18 +53,99 @@
 
   function showView(next: 'week' | 'day') {
     if (next === 'day' && view !== 'day') selectedDate = today.current;
+    pendingFocus = null;
     view = next;
   }
 
-  const dayItems = $derived(
-    dayAgenda(selectedDate, {
-      routines: [...schedule.classRoutines, ...schedule.routines, ...schedule.events],
-      subjects: schedule.subjects
-    })
+  function showDate(next: LocalDate) {
+    pendingFocus = null;
+    selectedDate = next;
+  }
+
+  const dayTaskGroups = $derived(dayTasks(selectedDate, tasks.all, today.current));
+  const dayRows = $derived(
+    mergeDay(
+      dayAgenda(selectedDate, {
+        routines: [...schedule.classRoutines, ...schedule.routines, ...schedule.events],
+        subjects: schedule.subjects
+      }),
+      dayTaskGroups.scheduled
+    )
   );
+  /** Baris tugas hari itu dalam urutan tampil: Tenggat lalu blok (rutin dilewati). */
+  const dayTaskIds = $derived([
+    ...dayTaskGroups.due.map((x) => x.id),
+    ...dayRows.flatMap((row) => (row.type === 'task' ? [row.item.task.id] : []))
+  ]);
 
   async function restore(item: DayItem) {
     await restoreOccurrence(item.routine.id, item.date, new Date().toISOString());
+  }
+
+  // ---------- Tugas (read-only, sheet ubah) ----------
+
+  let taskOpen = $state(false);
+  /** Sheet terbuka atau belum selesai menutup (perangkap fokus masih aktif). */
+  let taskSheetActive = $state(false);
+  let taskMode = $state<TaskSheetMode>({ kind: 'add' });
+
+  function editTask(task: Task) {
+    taskMode = { kind: 'edit', task };
+    taskSheetActive = true;
+    taskOpen = true;
+  }
+
+  let dayRoot = $state<HTMLElement | null>(null);
+
+  type PendingFocus = {
+    /** Tugas yang dihapus; target baru diproses setelah barisnya hilang dari hari itu. */
+    awaitGone: Id | null;
+    target: Id | 'heading';
+  };
+  let pendingFocus = $state<PendingFocus | null>(null);
+
+  function neighborOf(id: Id): Id | 'heading' {
+    const i = dayTaskIds.indexOf(id);
+    return dayTaskIds[i + 1] ?? dayTaskIds[i - 1] ?? 'heading';
+  }
+
+  const editPartOf = (id: Id) =>
+    dayRoot?.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(id)}"] [data-part="edit"]`) ?? null;
+
+  $effect(() => {
+    const p = pendingFocus;
+    const ids = dayTaskIds;
+    if (!p || taskSheetActive) return;
+    if (p.awaitGone !== null && ids.includes(p.awaitGone)) return;
+
+    let el: HTMLElement | null = null;
+    if (p.target !== 'heading') el = editPartOf(p.target);
+    if (!el) {
+      // Urungkan: tunggu baris yang dipulihkan muncul.
+      if (p.target !== 'heading' && p.awaitGone === null) return;
+      el =
+        ids.length === 0 ? (dayRoot?.querySelector<HTMLElement>('#day-heading') ?? null) : editPartOf(ids[0]);
+    }
+    if (!el) return;
+    el.focus();
+    pendingFocus = null;
+  });
+
+  async function removeTask(task: Task) {
+    const neighbor = neighborOf(task.id);
+    const token = await deleteTask(task.id, nowIso());
+    pendingFocus = { awaitGone: task.id, target: neighbor };
+    toast.show({
+      message: copy.tasks.deleted,
+      action: {
+        label: copy.toast.undo,
+        run: async () => {
+          const ok = await restoreTask(task.id, token, nowIso());
+          if (ok) pendingFocus = { awaitGone: null, target: task.id };
+          return ok;
+        }
+      }
+    });
   }
 
   // ---------- Sesi kelas ----------
@@ -227,17 +315,23 @@
   </div>
 
   {#if view === 'day'}
-    {#if schedule.loaded}
-      <DayView
-        date={selectedDate}
-        today={today.current}
-        items={dayItems}
-        onprev={() => (selectedDate = addDays(selectedDate, -1))}
-        onnext={() => (selectedDate = addDays(selectedDate, 1))}
-        ontoday={() => (selectedDate = today.current)}
-        onselect={(item) => openOccurrence(item.routine, item.date)}
-        onrestore={restore}
-      />
+    {#if schedule.loaded && tasks.loaded}
+      <div bind:this={dayRoot} class="contents">
+        <DayView
+          date={selectedDate}
+          today={today.current}
+          rows={dayRows}
+          due={dayTaskGroups.due}
+          nowMin={minutesSinceMidnight(now.current)}
+          subjectNames={tasks.subjectNames}
+          onprev={() => showDate(addDays(selectedDate, -1))}
+          onnext={() => showDate(addDays(selectedDate, 1))}
+          ontoday={() => showDate(today.current)}
+          onselect={(item) => openOccurrence(item.routine, item.date)}
+          onselecttask={editTask}
+          onrestore={restore}
+        />
+      </div>
     {/if}
   {:else if schedule.loaded && schedule.subjects.length === 0}
     <section class="flex flex-col gap-4 rounded-xl border border-line bg-card p-5">
@@ -307,6 +401,16 @@
   fromDate={classFromDate}
   ondelete={askDeleteSession}
   onend={askEndFrom}
+/>
+
+<TaskSheet
+  bind:open={taskOpen}
+  mode={taskMode}
+  today={today.current}
+  subjects={schedule.subjects}
+  subjectNames={tasks.subjectNames}
+  ondelete={removeTask}
+  onsettled={() => (taskSheetActive = false)}
 />
 
 <OccurrenceSheet bind:open={occurrenceOpen} target={occurrenceTarget} onfromdate={editFrom} />

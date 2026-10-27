@@ -32,6 +32,12 @@ export async function getSubject(id: Id): Promise<Subject | undefined> {
   return stored && fromStored(stored);
 }
 
+/** Termasuk mapel yang sudah dihapus, untuk label "(dihapus)" di tugas. ID yang tidak ada dilewati. */
+export async function getSubjectsByIds(ids: readonly Id[]): Promise<Subject[]> {
+  const found = await db.subjects.bulkGet([...ids]);
+  return found.filter((s) => s !== undefined).map(fromStored);
+}
+
 export async function createSubject(input: SubjectInput, now: IsoDateTime): Promise<Subject> {
   return db.transaction('rw', db.subjects, async () => {
     const clean = normalizeSubjectInput(input);
