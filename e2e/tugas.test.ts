@@ -304,6 +304,34 @@ test('(e) hapus → urungkan, fokus berikutnya/sebelumnya/heading, ✕ dan Escap
   expect(errors).toEqual([]);
 });
 
+test('(e) toast diganti saat fokus di luar → ✕ toast baru tidak kembali ke asal fokus toast lama', async ({
+  page
+}) => {
+  const errors = await setup(page);
+  await addTask(page, { title: 'Tugas A', dueDate: '2026-10-27' });
+  await addTask(page, { title: 'Tugas B', dueDate: '2026-10-28' });
+  await addTask(page, { title: 'Tugas C', dueDate: '2026-10-29' });
+  await addTask(page, { title: 'Tugas D', dueDate: '2026-10-30' });
+
+  // Toast lama: asal fokus = baris C. Lalu keluar ke body tanpa menutup toast.
+  await deleteVia(page, page, 'Tugas D');
+  await expect(editOf(page, 'Tugas C')).toBeFocused();
+  await undoToast(page).getByRole('button', { name: 'Urungkan' }).focus();
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+
+  // Toast baru menggantikan saat fokus di luar → asal fokus lama di-reset (Usulan F2 #22b).
+  await deleteVia(page, page, 'Tugas A');
+  await expect(editOf(page, 'Tugas B')).toBeFocused();
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  // Masuk tanpa relatedTarget (dari body), seperti lompatan pembaca layar.
+  await undoToast(page).getByRole('button', { name: 'Tutup' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(undoToast(page)).toBeHidden();
+  await expect(editOf(page, 'Tugas C')).not.toBeFocused();
+  expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 test('(e) Hari ini: hapus baris terakhir grup utama → fokus ke baris pertama "Belum selesai sebelumnya"', async ({
   page
 }) => {

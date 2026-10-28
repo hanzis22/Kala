@@ -5,8 +5,9 @@ import type { PrayerLog } from '$lib/domain/types';
 import { today } from './today.svelte';
 
 /**
- * Catatan sholat 7 hari terakhir sampai hari ini (cukup untuk grid konsistensi dan hari ini/kemarin),
- * lewat liveQuery sehingga ikut berubah saat dicatat atau dari tab lain.
+ * Catatan sholat [hari ini − 6, hari ini + 1]: grid konsistensi, hari ini/kemarin, dan besok untuk sholat
+ * bertanggal lokasi D+1 yang tampil di agenda perangkat D (perangkat di belakang zona lokasi, rencana F2 §2).
+ * Pemakai menyaring per tanggal. Lewat liveQuery sehingga ikut berubah saat dicatat atau dari tab lain.
  */
 class PrayerLogsStore {
   items = $state<PrayerLog[]>([]);
@@ -16,8 +17,8 @@ class PrayerLogsStore {
   start(): () => void {
     return $effect.root(() => {
       $effect(() => {
-        const to = today.current;
-        const from = addDays(to, -6);
+        const from = addDays(today.current, -6);
+        const to = addDays(today.current, 1);
         const sub = liveQuery(() => prayerLogsBetween(from, to)).subscribe({
           next: (logs) => {
             this.items = logs;

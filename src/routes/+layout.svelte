@@ -8,6 +8,7 @@
   import UndoToast from '$lib/components/UndoToast.svelte';
   import UpdateToast from '$lib/components/UpdateToast.svelte';
   import { copy } from '$lib/copy';
+  import { day } from '$lib/stores/day.svelte';
   import { now } from '$lib/stores/now.svelte';
   import { prayerLogs } from '$lib/stores/prayerLogs.svelte';
   import { schedule } from '$lib/stores/schedule.svelte';
@@ -26,6 +27,7 @@
       now.start(),
       settings.start(),
       prayerLogs.start(),
+      day.start(),
       schedule.start(),
       tasks.start(),
       theme.start()
@@ -59,12 +61,14 @@
   >
     {@render children()}
   </div>
-  {#if !onOnboarding}
-    <BottomNav />
-  {/if}
 {:else}
   <p class="sr-only" role="status">{copy.loading}</p>
 {/if}
 
-<UpdateToast aboveNav={!onOnboarding} />
+<!-- Urutan DOM = urutan Tab: toast sebelum nav agar Urungkan dekat dengan halaman (Usulan F6 #7).
+     Posisi visual tetap (fixed). Toast di luar guard agar UpdateToast tetap muncul saat memuat. -->
 <UndoToast aboveNav={!onOnboarding} />
+<UpdateToast aboveNav={!onOnboarding} />
+{#if allowed && !onOnboarding}
+  <BottomNav />
+{/if}
