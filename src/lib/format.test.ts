@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, formatDateRange, formatDayDate, formatWeekdayShort } from './format';
+import { formatClock, formatDateRange, formatDayDate, formatFullDate, formatWeekdayShort } from './format';
 
 describe('format', () => {
   it('formatClock memakai titik dan dua digit', () => {
@@ -20,5 +20,10 @@ describe('format', () => {
   it('formatDateRange: bulan sama dan beda bulan', () => {
     expect(formatDateRange('2026-10-19', '2026-10-24')).toBe('19–24 Okt');
     expect(formatDateRange('2026-12-28', '2027-01-02')).toBe('28 Des – 2 Jan');
+  });
+
+  it('formatFullDate: hari, tanggal, bulan panjang, tahun', () => {
+    expect(formatFullDate('2026-10-26')).toBe('Senin, 26 Oktober 2026');
+    expect(formatFullDate('2027-01-01')).toBe('Jumat, 1 Januari 2027');
   });
 });

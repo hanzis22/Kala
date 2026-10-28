@@ -3,9 +3,20 @@
  * Dikumpulkan di sini agar siap i18n (Paraglide, Fase 3).
  */
 import type { TaskRepoError } from '$lib/data/repo/tasks';
+import type { Greeting } from '$lib/domain/day';
 import type { Weekday } from '$lib/domain/recurrence';
 import type { TaskError, TaskFilter } from '$lib/domain/tasks';
-import type { PrayerName, Priority, RoutineKind, TaskType } from '$lib/domain/types';
+import type { PrayerName, PrayerStatus, Priority, RoutineKind, TaskType } from '$lib/domain/types';
+
+const worshipMethod = 'Metode Kemenag';
+
+/** Teks hitung mundur (rencana F2 #18, #26): visual "1 j 05 m" / "45 m", dibacakan "1 jam 5 menit lagi". */
+function countdown(minutes: number): { visual: string; spoken: string } {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return { visual: `${m} m`, spoken: `${m} menit lagi` };
+  return { visual: `${h} j ${String(m).padStart(2, '0')} m`, spoken: `${h} jam ${m} menit lagi` };
+}
 
 export const copy = {
   appName: 'Kala',
@@ -57,9 +68,7 @@ export const copy = {
 
   pages: {
     today: {
-      title: 'Hari Ini',
-      emptyTitle: 'Harimu masih kosong',
-      emptyBody: 'Jadwal sholat, prioritas, dan agenda harianmu akan tampil di sini.'
+      title: 'Hari Ini'
     },
     schedule: {
       title: 'Jadwal',
@@ -116,7 +125,7 @@ export const copy = {
 
   worship: {
     scheduleHeading: 'Jadwal sholat hari ini',
-    method: 'Metode Kemenag',
+    method: worshipMethod,
     noteDone: 'Sudah',
     noteDoneCongregation: 'Sudah · berjamaah',
     noteNow: (minutes: number) => (minutes < 1 ? 'Baru saja masuk' : `Sudah masuk ${minutes} menit lalu`),
@@ -139,6 +148,98 @@ export const copy = {
     logSheetDescription: 'Catatan ini hanya tersimpan di perangkatmu.',
     congregation: 'Berjamaah',
     undo: 'Batalkan catatan'
+  },
+
+  today: {
+    greeting: {
+      pagi: 'Selamat pagi',
+      siang: 'Selamat siang',
+      sore: 'Selamat sore',
+      malam: 'Selamat malam'
+    } satisfies Record<Greeting, string>,
+    /** "Selamat pagi, Dhani"; tanpa koma jika nama kosong. */
+    heading: (greeting: string, name: string) => (name.trim() ? `${greeting}, ${name.trim()}` : greeting),
+    sky: {
+      active: (name: string) => `Waktu ${name}`,
+      entered: 'Sudah masuk',
+      toward: (name: string) => `Menuju ${name}`,
+      at: (name: string, time: string, tomorrow: boolean) =>
+        `${name}${tomorrow ? ' besok' : ''} pukul ${time}`,
+      countdown,
+      /** Baris sub mode CTA: "Isya pukul 18.57, 1 j 05 m lagi"; versi dibacakan memakai `spoken` (sudah memuat "lagi"). */
+      sub: (at: string, minutes: number) => {
+        const c = countdown(minutes);
+        return { visual: `${at}, ${c.visual} lagi`, spoken: `${at}, ${c.spoken}` };
+      },
+      cta: (name: string) => `Tandai sudah sholat ${name}`,
+      footerLocation: (label: string) => `${label} · ${worshipMethod}`,
+      nowAt: (time: string) => `Sekarang ${time}`
+    },
+    chips: {
+      groupLabel: 'Sholat hari ini',
+      /** Label aksesibel chip (Usulan #28); diawali teks terlihat "{Sholat} {jam}" (WCAG 2.5.3). */
+      label: (name: string, time: string, status: PrayerStatus) => {
+        const head = `${name} ${time}`;
+        switch (status) {
+          case 'done':
+            return `${head}, sudah dicatat. Ketuk untuk menghapus catatan`;
+          case 'now':
+            return `${head}, sedang berlangsung. Ketuk untuk mencatat`;
+          case 'missed':
+            return `${head}, belum dicatat. Ketuk untuk mencatat`;
+          case 'upcoming':
+            return `${head}, belum masuk`;
+        }
+      },
+      removed: (name: string) => `Catatan ${name} dihapus`
+    },
+    priorities: {
+      heading: '3 prioritas hari ini',
+      count: (done: number, filled: number) => `${done} dari ${filled}`,
+      placeholder: 'Tulis prioritas',
+      inputLabel: (n: number) => `Prioritas ${n}`,
+      checkLabel: (text: string) => `Tandai selesai: ${text}`
+    },
+    banner: {
+      region: 'Zona waktu',
+      title: 'Lokasimu berubah?',
+      body: (label: string) => `Jadwal sholat masih mengikuti ${label}.`,
+      update: 'Perbarui lokasi',
+      dismiss: 'Tutup'
+    },
+    agenda: {
+      heading: 'Agenda',
+      dueHeading: 'Tenggat hari ini',
+      showAll: 'Lihat semua',
+      showLess: 'Tampilkan lebih sedikit',
+      carriedOver: (n: number) => `Belum selesai sebelumnya (${n})`,
+      /** Usulan #39: pengganti list saat timeline kosong. */
+      empty: 'Belum ada jadwal hari ini.',
+      kindTag: {
+        prayer: 'Sholat',
+        class: 'Kelas',
+        routine: 'Rutin',
+        event: 'Kegiatan',
+        task: 'Tugas'
+      } satisfies Record<RoutineKind | 'prayer' | 'task', string>,
+      /** "Kelas · R. 11B · sampai 08.30"; lokasi kosong dilewati. */
+      meta: (kind: string, location: string, end: string) =>
+        [kind, location.trim(), `sampai ${end}`].filter((x) => x !== '').join(' · '),
+      now: 'Sedang berlangsung',
+      /** Pill "Berikutnya · 25 menit lagi"; ≥ 60 menit memakai format hitung mundur kartu langit. */
+      next: (minutes: number) => {
+        const c = countdown(minutes);
+        const visual = minutes < 60 ? `${minutes} menit lagi` : `${c.visual} lagi`;
+        return { visual: `Berikutnya · ${visual}`, spoken: `Berikutnya, ${c.spoken}` };
+      },
+      overlapsPrayer: (name: string) => `Bertepatan dengan waktu ${name}`,
+      conflict: 'Bentrok dengan agenda lain',
+      /** Usulan #37: label centang menyebut jenis (Usulan F6 #6). kind = huruf kecil, time = "07.00–08.30". */
+      check: (title: string, kind: string, time: string, done: boolean) =>
+        `${done ? 'Batalkan selesai' : 'Tandai selesai'}: ${title}, ${kind}, ${time}`,
+      prayerCheck: (name: string, time: string, done: boolean) =>
+        `${done ? 'Hapus catatan sholat' : 'Tandai sudah sholat'}: ${name}, sholat, ${time}`
+    }
   },
 
   location: {

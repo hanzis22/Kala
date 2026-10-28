@@ -43,3 +43,16 @@ export function formatDateRange(from: LocalDate, to: LocalDate): string {
   }
   return `${clean(dayMonth.format(utcNoon(from)))} – ${clean(dayMonth.format(utcNoon(to)))}`;
 }
+
+const fullDate = new Intl.DateTimeFormat('id-ID', {
+  timeZone: 'UTC',
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric'
+});
+
+/** '2026-10-26' → 'Senin, 26 Oktober 2026' (header Hari Ini). */
+export function formatFullDate(date: LocalDate): string {
+  return fullDate.format(utcNoon(date));
+}

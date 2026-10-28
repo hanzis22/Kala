@@ -15,7 +15,8 @@ test('app tetap terbuka setelah reload dalam mode offline', async ({ page, conte
   await context.setOffline(true);
 
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Hari Ini' })).toBeVisible();
+  await expect(page).toHaveTitle(/^Hari Ini/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
   // Deep link yang diprerender.
   await page.goto('/tugas');

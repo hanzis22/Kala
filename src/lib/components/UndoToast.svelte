@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { fly } from 'svelte/transition';
   import { prefersReducedMotion } from 'svelte/motion';
   import X from '@lucide/svelte/icons/x';
@@ -38,6 +39,25 @@
     returnFocus = null;
     void toast.runAction();
   }
+
+  /**
+   * Toast berganti (Usulan F2 nomor 22b). Dicek sebelum DOM diperbarui, selagi box lama masih terpasang:
+   * fokus di luar toast → asal fokus lama tidak berlaku lagi (reset); fokus di dalam → asal fokus dibawa
+   * ke toast baru dan fokus pindah ke tombol aksinya (cadangan ✕), agar tidak jatuh ke body.
+   */
+  let shownId: number | null = null;
+  $effect.pre(() => {
+    const id = toast.current?.id ?? null;
+    if (id === shownId) return;
+    shownId = id;
+    const wasInside = box?.contains(document.activeElement) ?? false;
+    if (id === null) return;
+    if (!wasInside) {
+      returnFocus = null;
+      return;
+    }
+    void tick().then(() => box?.querySelector('button')?.focus());
+  });
 
   // Digantikan toast lain: keluar tanpa animasi agar live region tidak memuat dua pesan.
   const inParams = $derived({ y: 8, duration: prefersReducedMotion.current ? 0 : 150 });
