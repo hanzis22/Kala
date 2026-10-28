@@ -150,7 +150,12 @@
       <circle cx={marker.x} cy={marker.y} r="15" class="fill-sun opacity-20"></circle>
       <circle cx={marker.x} cy={marker.y} r="9" class="fill-sun"></circle>
       {#if card.body === 'moon'}
-        <circle cx={marker.x + 5} cy={marker.y - 4} r="8" class="fill-sky-surface"></circle>
+        <circle
+          cx={marker.x + 5}
+          cy={marker.y - 4}
+          r="8"
+          class={card.tone === 'fajar' ? 'fill-sky-fajar' : 'fill-sky-senja'}
+        ></circle>
       {/if}
     </svg>
 
