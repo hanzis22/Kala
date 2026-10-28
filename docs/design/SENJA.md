@@ -35,7 +35,7 @@ Semua warna punya pasangan terang dan gelap. Komponen hanya memakai token, tidak
 
 **Fokus keyboard:** `outline: 2px solid var(--focus-ring); outline-offset: 2px` di semua elemen interaktif, termasuk di atas tombol brand.
 
-**Aturan kartu langit:** pakai `sky-fajar` dari Subuh sampai sebelum Ashar, `sky-senja` dari Ashar sampai Isya. Setelah Isya, aplikasi boleh otomatis pindah ke tema gelap (kalau user memilih "ikuti waktu sholat" di pengaturan), dan `sun` tampil sebagai bulan sabit.
+**Aturan kartu langit (`skyTone`):** `sky-senja` dari Ashar sampai sebelum Isya; `sky-fajar` untuk sisanya, yaitu dari Subuh sampai sebelum Ashar dan dari Isya sampai sebelum Subuh esok. Satu aturan ini dipakai di Hari Ini dan Ibadah. Dari Isya sampai Subuh, `sun` tampil sebagai bulan sabit (lingkaran penutup memakai warna latar kartu). Setelah Isya, aplikasi boleh otomatis pindah ke tema gelap (kalau user memilih "ikuti waktu sholat" di pengaturan).
 
 **Tag jenis agenda** selalu pasangan *soft* + teksnya: ibadah `brand-soft`/`brand-ink`, kelas `class-soft`/`class`, tugas `teal-soft`/`teal`, rutin dan habit `surface-sunken`/`ink-muted`.
 
