@@ -9,6 +9,35 @@ const skyHeading = (page: Page) => page.locator('#sky-heading');
 const cta = (page: Page) => page.getByRole('button', { name: /^Tandai sudah sholat / });
 const banner = (page: Page) => page.getByRole('region', { name: 'Zona waktu' });
 const ibadahRow = (page: Page, prayer: string) => page.locator(`li[data-prayer="${prayer}"]`);
+const chips = (page: Page) => page.getByRole('region', { name: 'Sholat hari ini' });
+const chip = (page: Page, prayer: string) => chips(page).locator(`button[data-prayer="${prayer}"]`);
+const toastBox = (page: Page) => page.getByRole('status');
+const undo = (page: Page) => toastBox(page).getByRole('button', { name: 'Urungkan' });
+const priority = (page: Page, n: number) => page.getByRole('textbox', { name: `Prioritas ${n}` });
+const check = (page: Page, text: string) => page.getByRole('checkbox', { name: `Tandai selesai: ${text}` });
+const prioritiesCard = (page: Page) => page.locator('section[aria-labelledby="priorities-heading"]');
+
+/** Isi DayEntry.priorities langsung dari IndexedDB ("x teks" = selesai); null jika entri belum ada. */
+function storedPriorities(page: Page, date: string): Promise<string[] | null> {
+  return page.evaluate(
+    (d) =>
+      new Promise<string[] | null>((resolve, reject) => {
+        const req = indexedDB.open('kala');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const db = req.result;
+          const get = db.transaction('dayEntries').objectStore('dayEntries').get(d);
+          get.onerror = () => reject(get.error);
+          get.onsuccess = () => {
+            db.close();
+            const entry = get.result as { priorities: { text: string; done: boolean }[] } | undefined;
+            resolve(entry ? entry.priorities.map((p) => `${p.done ? 'x' : '-'} ${p.text}`) : null);
+          };
+        };
+      }),
+    date
+  );
+}
 
 async function pickCity(page: Page, query: string, name: string) {
   const sheet = page.getByRole('dialog', { name: 'Pilih lokasi' });
@@ -130,6 +159,8 @@ test.describe('perangkat Asia/Jakarta', () => {
     expect(await page.evaluate(() => document.activeElement?.id)).toBe('sky-heading');
     await expect(skyHeading(page)).toBeFocused();
     await expect(skyCard(page)).toContainText(`Isya pukul ${clock(isya)}`);
+    await expect(chip(page, 'maghrib')).toHaveAttribute('data-status', 'done');
+    await expect(chip(page, 'maghrib')).toHaveAccessibleName(/^Maghrib \d{2}\.\d{2}, sudah dicatat\./);
 
     await gotoTab(page, 'Ibadah');
     await expect(ibadahRow(page, 'maghrib')).toHaveAttribute('data-status', 'done');
@@ -156,6 +187,196 @@ test.describe('perangkat Asia/Jakarta', () => {
     await gotoTab(page, 'Ibadah');
     await expect(ibadahRow(page, 'isya')).toHaveAttribute('data-status', 'upcoming');
     await expect(page.getByText('1 / 35')).toBeVisible();
+
+    expect(errors).toEqual([]);
+  });
+
+  test('5. chip: catat → berjamaah di Ibadah → hapus → Urungkan memulihkan log utuh, fokus ke chip', async ({
+    page
+  }) => {
+    const errors = collectPageErrors(page);
+    await openToday(page, at('18:00'));
+
+    await expect(chip(page, 'ashar')).toHaveAttribute('data-status', 'missed');
+    await expect(chip(page, 'ashar')).toHaveAccessibleName(
+      /^Ashar \d{2}\.\d{2}, belum dicatat\. Ketuk untuk mencatat$/
+    );
+    await chip(page, 'ashar').click();
+    await expect(chip(page, 'ashar')).toHaveAttribute('data-status', 'done');
+
+    await gotoTab(page, 'Ibadah');
+    await page.getByRole('button', { name: 'Sudah sholat Ashar. Ubah catatan' }).click();
+    const sheet = page.getByRole('dialog', { name: /^Ashar · dicatat 18\.00$/ });
+    await sheet.getByRole('switch', { name: 'Berjamaah' }).check();
+    await sheet.getByRole('button', { name: 'Tutup' }).click();
+    await expect(ibadahRow(page, 'ashar')).toContainText('Sudah · berjamaah');
+
+    await gotoTab(page, 'Hari Ini');
+    await chip(page, 'ashar').click();
+    await expect(chip(page, 'ashar')).toHaveAttribute('data-status', 'missed');
+    await expect(toastBox(page)).toContainText('Catatan Ashar dihapus');
+    await undo(page).click();
+
+    await expect(chip(page, 'ashar')).toHaveAttribute('data-status', 'done');
+    await expect(chip(page, 'ashar')).toBeFocused();
+    await expect(undo(page)).toHaveCount(0);
+
+    await gotoTab(page, 'Ibadah');
+    await expect(ibadahRow(page, 'ashar')).toContainText('Sudah · berjamaah');
+
+    expect(errors).toEqual([]);
+  });
+
+  test('6. chip sholat yang belum masuk: aria-disabled, tetap bisa difokus, tanpa log', async ({ page }) => {
+    const errors = collectPageErrors(page);
+    await openToday(page, at('07:00'));
+
+    const dzuhur = chip(page, 'dzuhur');
+    await expect(dzuhur).toHaveAttribute('data-status', 'upcoming');
+    await expect(dzuhur).toHaveAttribute('aria-disabled', 'true');
+    await expect(dzuhur).toHaveAccessibleName(/^Dzuhur \d{2}\.\d{2}, belum masuk$/);
+    await dzuhur.focus();
+    await expect(dzuhur).toBeFocused();
+    // Playwright menolak klik elemen aria-disabled; force tetap mengirim klik pointer sungguhan.
+    await dzuhur.click({ force: true });
+    await page.keyboard.press('Enter');
+    await expect(dzuhur).toHaveAttribute('data-status', 'upcoming');
+    await expect(toastBox(page)).toBeEmpty();
+
+    await gotoTab(page, 'Ibadah');
+    await expect(ibadahRow(page, 'dzuhur')).toHaveAttribute('data-status', 'upcoming');
+    await expect(page.getByText('0 / 35')).toBeVisible();
+
+    expect(errors).toEqual([]);
+  });
+
+  test('7. prioritas: isi, centang, offline + reload, baris kosong naik, simpan tanpa blur', async ({
+    page,
+    context
+  }) => {
+    const errors = collectPageErrors(page);
+    await openToday(page, at('07:00'));
+    const date = '2026-10-26';
+
+    await expect(prioritiesCard(page)).toContainText('3 prioritas hari ini');
+    await expect(prioritiesCard(page)).not.toContainText(/dari/);
+    await expect(check(page, 'Prioritas 1')).toBeDisabled();
+    await expect(priority(page, 1)).toHaveAttribute('maxlength', '80');
+
+    await priority(page, 1).fill('Belajar fisika');
+    await priority(page, 2).fill('Kerjakan PR');
+    await check(page, 'Belajar fisika').check();
+    await expect(prioritiesCard(page)).toContainText('1 dari 2');
+    await expect.poll(() => storedPriorities(page, date)).toEqual(['x Belajar fisika', '- Kerjakan PR']);
+
+    // Service worker aktif dan mengendalikan halaman dulu (pola offline.test.ts), baru offline.
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+    await context.setOffline(true);
+    await page.reload();
+    await expect(priority(page, 1)).toHaveValue('Belajar fisika');
+    await expect(priority(page, 2)).toHaveValue('Kerjakan PR');
+    await expect(check(page, 'Belajar fisika')).toBeChecked();
+    await expect(prioritiesCard(page)).toContainText('1 dari 2');
+
+    // Baris 1 dikosongkan lalu keluar kartu: baris 2 naik.
+    await priority(page, 1).fill('');
+    await priority(page, 1).blur();
+    await expect(priority(page, 1)).toHaveValue('Kerjakan PR');
+    await expect(priority(page, 2)).toHaveValue('');
+    await expect(prioritiesCard(page)).toContainText('0 dari 1');
+    await expect.poll(() => storedPriorities(page, date)).toEqual(['- Kerjakan PR']);
+
+    // Mengetik tanpa blur: tersimpan lewat debounce, bertahan setelah reload.
+    await priority(page, 2).fill('Baca buku');
+    await expect(priority(page, 2)).toBeFocused();
+    await expect.poll(() => storedPriorities(page, date)).toEqual(['- Kerjakan PR', '- Baca buku']);
+    await page.reload();
+    await expect(priority(page, 2)).toHaveValue('Baca buku');
+
+    // Ketik baris 1 lalu langsung centang baris 2 sebelum debounce: keduanya tersimpan.
+    await priority(page, 1).fill('Kerjakan PR matematika');
+    await check(page, 'Baca buku').check();
+    await expect
+      .poll(() => storedPriorities(page, date))
+      .toEqual(['- Kerjakan PR matematika', 'x Baca buku']);
+    await page.reload();
+    await expect(priority(page, 1)).toHaveValue('Kerjakan PR matematika');
+    await expect(check(page, 'Baca buku')).toBeChecked();
+
+    expect(errors).toEqual([]);
+  });
+
+  test('7b. prioritas: tengah malam saat mengetik → tulis ke Senin, kartu kosong, fokus tetap', async ({
+    page
+  }) => {
+    const errors = collectPageErrors(page);
+    // Clock berjalan selama onboarding, lalu dihentikan tepat sebelum 00.00 (debounce belum jatuh saat 00.00).
+    await page.clock.install({ time: at('23:58') });
+    await completeOnboarding(page);
+    await expect(priority(page, 1)).toBeVisible();
+    await page.clock.pauseAt(new Date('2026-10-26T23:59:59.800+07:00'));
+
+    await priority(page, 1).fill('Rapikan catatan');
+    await page.clock.runFor(400);
+
+    await expect(page.getByText('Selasa, 27 Oktober 2026', { exact: true })).toBeVisible();
+    await expect(priority(page, 1)).toHaveValue('');
+    await expect(priority(page, 1)).toBeFocused();
+    await expect.poll(() => storedPriorities(page, '2026-10-26')).toEqual(['- Rapikan catatan']);
+
+    await page.clock.runFor(1000);
+    expect(await storedPriorities(page, '2026-10-27')).not.toEqual(
+      expect.arrayContaining(['- Rapikan catatan'])
+    );
+    await expect(priority(page, 1)).toHaveValue('');
+
+    expect(errors).toEqual([]);
+  });
+
+  test('15. tanpa lokasi: chip tidak dirender; setelah memilih Jakarta chip muncul', async ({ page }) => {
+    const errors = collectPageErrors(page);
+    await page.clock.setFixedTime(at('07:00'));
+    await completeOnboarding(page);
+    await expect(page.getByRole('heading', { name: 'Pilih lokasimu dulu' })).toBeVisible();
+    await expect(chips(page)).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Pilih lokasi' }).click();
+    await pickCity(page, 'jakarta pusat', 'Jakarta Pusat');
+    await expect(chips(page).getByRole('button')).toHaveCount(5);
+    await expect(chip(page, 'subuh')).toHaveAttribute('data-status', /^(done|missed)$/);
+
+    expect(errors).toEqual([]);
+  });
+
+  test('22b. toast diganti saat fokus di Urungkan: fokus pindah ke toast baru, Escape ke asal toast pertama', async ({
+    page
+  }) => {
+    const errors = collectPageErrors(page);
+    await openToday(page, at('18:00'));
+    await chip(page, 'dzuhur').click();
+    await chip(page, 'ashar').click();
+    await expect(chip(page, 'dzuhur')).toHaveAttribute('data-status', 'done');
+    await expect(chip(page, 'ashar')).toHaveAttribute('data-status', 'done');
+
+    // Toast A dari chip Dzuhur; fokus masuk ke Urungkan dari chip itu.
+    await chip(page, 'dzuhur').click();
+    await expect(toastBox(page)).toContainText('Catatan Dzuhur dihapus');
+    await expect(chip(page, 'dzuhur')).toBeFocused();
+    await undo(page).focus();
+    await expect(undo(page)).toBeFocused();
+
+    // Chip Ashar diklik tanpa memindah fokus: toast B menggantikan, fokus ikut ke Urungkan toast B.
+    await chip(page, 'ashar').dispatchEvent('click');
+    await expect(toastBox(page)).toContainText('Catatan Ashar dihapus');
+    await expect(undo(page)).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(undo(page)).toHaveCount(0);
+    await expect(chip(page, 'dzuhur')).toBeFocused();
 
     expect(errors).toEqual([]);
   });
