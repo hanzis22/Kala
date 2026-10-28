@@ -6,7 +6,7 @@ import type { TaskRepoError } from '$lib/data/repo/tasks';
 import type { Greeting } from '$lib/domain/day';
 import type { Weekday } from '$lib/domain/recurrence';
 import type { TaskError, TaskFilter } from '$lib/domain/tasks';
-import type { PrayerName, Priority, RoutineKind, TaskType } from '$lib/domain/types';
+import type { PrayerName, PrayerStatus, Priority, RoutineKind, TaskType } from '$lib/domain/types';
 
 const worshipMethod = 'Metode Kemenag';
 
@@ -174,6 +174,31 @@ export const copy = {
       cta: (name: string) => `Tandai sudah sholat ${name}`,
       footerLocation: (label: string) => `${label} · ${worshipMethod}`,
       nowAt: (time: string) => `Sekarang ${time}`
+    },
+    chips: {
+      groupLabel: 'Sholat hari ini',
+      /** Label aksesibel chip (Usulan #28); diawali teks terlihat "{Sholat} {jam}" (WCAG 2.5.3). */
+      label: (name: string, time: string, status: PrayerStatus) => {
+        const head = `${name} ${time}`;
+        switch (status) {
+          case 'done':
+            return `${head}, sudah dicatat. Ketuk untuk menghapus catatan`;
+          case 'now':
+            return `${head}, sedang berlangsung. Ketuk untuk mencatat`;
+          case 'missed':
+            return `${head}, belum dicatat. Ketuk untuk mencatat`;
+          case 'upcoming':
+            return `${head}, belum masuk`;
+        }
+      },
+      removed: (name: string) => `Catatan ${name} dihapus`
+    },
+    priorities: {
+      heading: '3 prioritas hari ini',
+      count: (done: number, filled: number) => `${done} dari ${filled}`,
+      placeholder: 'Tulis prioritas',
+      inputLabel: (n: number) => `Prioritas ${n}`,
+      checkLabel: (text: string) => `Tandai selesai: ${text}`
     },
     banner: {
       region: 'Zona waktu',

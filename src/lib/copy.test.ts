@@ -37,4 +37,20 @@ describe('copy.today', () => {
     expect(copy.today.heading('Selamat pagi', '')).toBe('Selamat pagi');
     expect(copy.today.heading('Selamat pagi', '   ')).toBe('Selamat pagi');
   });
+
+  it('chip: label per status diawali teks terlihat, tanpa kata "terlewat"', () => {
+    const label = copy.today.chips.label;
+    expect(label('Subuh', '04.20', 'done')).toBe('Subuh 04.20, sudah dicatat. Ketuk untuk menghapus catatan');
+    expect(label('Subuh', '04.20', 'now')).toBe('Subuh 04.20, sedang berlangsung. Ketuk untuk mencatat');
+    expect(label('Subuh', '04.20', 'missed')).toBe('Subuh 04.20, belum dicatat. Ketuk untuk mencatat');
+    expect(label('Subuh', '04.20', 'upcoming')).toBe('Subuh 04.20, belum masuk');
+    expect(copy.today.chips.removed('Ashar')).toBe('Catatan Ashar dihapus');
+  });
+
+  it('prioritas: hitungan, label input, label checkbox', () => {
+    const p = copy.today.priorities;
+    expect(p.count(1, 2)).toBe('1 dari 2');
+    expect(p.inputLabel(3)).toBe('Prioritas 3');
+    expect(p.checkLabel('Belajar fisika')).toBe('Tandai selesai: Belajar fisika');
+  });
 });

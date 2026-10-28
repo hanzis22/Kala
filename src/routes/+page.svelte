@@ -4,6 +4,8 @@
    * kartu langit di zona lokasi; tanggal dari store `today`. Badge streak dan tombol profil tidak dibangun.
    */
   import CityPicker from '$lib/components/CityPicker.svelte';
+  import PrayerChips from '$lib/components/PrayerChips.svelte';
+  import PrioritiesCard from '$lib/components/PrioritiesCard.svelte';
   import SkyCard from '$lib/components/SkyCard.svelte';
   import ZoneBanner from '$lib/components/ZoneBanner.svelte';
   import { copy } from '$lib/copy';
@@ -14,11 +16,17 @@
   import { toPrayerConfig } from '$lib/domain/prayer';
   import type { Location } from '$lib/domain/types';
   import { formatFullDate } from '$lib/format';
+  import { day } from '$lib/stores/day.svelte';
   import { now } from '$lib/stores/now.svelte';
   import { settings } from '$lib/stores/settings.svelte';
   import { today } from '$lib/stores/today.svelte';
 
   let pickerOpen = $state(false);
+  /** Kartu prioritas dirender setelah load pertama store `day` dan tetap terpasang saat tanggal berganti. */
+  let dayReady = $state(false);
+  $effect(() => {
+    if (day.loaded) dayReady = true;
+  });
 
   const date = $derived(today.current);
   const config = $derived(settings.current ? toPrayerConfig(settings.current) : null);
@@ -48,6 +56,14 @@
   {/if}
 
   <SkyCard {config} onpicklocation={() => (pickerOpen = true)} />
+
+  {#if config}
+    <PrayerChips {config} />
+  {/if}
+
+  {#if dayReady}
+    <PrioritiesCard />
+  {/if}
 </div>
 
 <CityPicker bind:open={pickerOpen} onselect={selectLocation} />
