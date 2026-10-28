@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { collectPageErrors, completeOnboarding, nav, TABS } from './helpers';
+import { collectPageErrors, completeOnboarding, expectTab, nav, TABS } from './helpers';
 
 test('belum onboarding diarahkan ke /onboarding, BottomNav tersembunyi', async ({ page }) => {
   await page.goto('/tugas');
@@ -15,7 +15,7 @@ test('kelima tab bisa dibuka lewat BottomNav', async ({ page }) => {
   for (const tab of [...TABS.slice(1), TABS[0]]) {
     await nav(page).getByRole('link', { name: tab.label }).click();
     await expect(page).toHaveURL(tab.path);
-    await expect(page.getByRole('heading', { level: 1, name: tab.label })).toBeVisible();
+    await expectTab(page, tab);
     await expect(nav(page).getByRole('link', { name: tab.label })).toHaveAttribute('aria-current', 'page');
     await expect(nav(page).locator('[aria-current="page"]')).toHaveCount(1);
   }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { completeOnboarding, TABS } from './helpers';
+import { completeOnboarding, expectTab, TABS } from './helpers';
 
 for (const width of [360, 390]) {
   for (const colorScheme of ['light', 'dark'] as const) {
@@ -10,7 +10,7 @@ for (const width of [360, 390]) {
 
       for (const tab of TABS) {
         await page.goto(tab.path);
-        await expect(page.getByRole('heading', { level: 1, name: tab.label })).toBeVisible();
+        await expectTab(page, tab);
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth
         );
