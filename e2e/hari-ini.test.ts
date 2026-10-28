@@ -102,6 +102,87 @@ const carriedGroup = (page: Page) => agenda(page).getByRole('group', { name: /Be
 const taskRow = (scope: Locator, title: string) =>
   scope.locator('li[data-task-id]').filter({ hasText: title });
 
+// ---------- FAB (P4.2) ----------
+
+const fab = (page: Page) => page.getByRole('button', { name: 'Tambah tugas' });
+
+type TaskSpec = {
+  title: string;
+  dueDate?: string;
+  dueTime?: string;
+  scheduled?: { date: string; start: string; duration: string };
+  subject?: string;
+};
+
+/** Disalin dari e2e/tugas.test.ts. */
+async function fillTask(sheet: Locator, spec: TaskSpec) {
+  await sheet.getByLabel('Judul', { exact: true }).fill(spec.title);
+  if (spec.subject)
+    await sheet.getByRole('combobox', { name: /^Mapel/ }).selectOption({ label: spec.subject });
+  if (spec.dueDate) await sheet.getByLabel('Tanggal tenggat').fill(spec.dueDate);
+  if (spec.dueTime) await sheet.getByLabel('Jam tenggat').fill(spec.dueTime);
+  if (spec.scheduled) {
+    await sheet.getByRole('switch', { name: 'Jadwalkan pengerjaan' }).click();
+    await sheet.getByLabel('Tanggal pengerjaan').fill(spec.scheduled.date);
+    await sheet.getByLabel('Jam mulai').fill(spec.scheduled.start);
+    await sheet.getByLabel('Durasi (menit)').fill(spec.scheduled.duration);
+  }
+}
+
+/** Menambah tugas lewat FAB (disalin dari e2e/tugas.test.ts). */
+async function addTask(page: Page, spec: TaskSpec) {
+  await page.getByRole('button', { name: 'Tambah tugas' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Tambah tugas' });
+  await fillTask(sheet, spec);
+  await sheet.getByRole('button', { name: 'Simpan' }).click();
+  await expect(sheet).toBeHidden();
+}
+
+type Stop = { mark: string | null; what: string; problem: string | null };
+
+/**
+ * Dijalankan di halaman: elemen yang sedang fokus harus :focus-visible dengan outline, dan titik tengahnya
+ * tidak tertutup elemen fixed (WCAG 2.4.11: BottomNav, FAB, toast). `mark` = `data-e2e` elemen itu.
+ */
+function focusedStop(): Stop {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el || el === document.body) return { mark: null, what: 'body', problem: null };
+  const name = el.getAttribute('aria-label') ?? el.textContent?.trim() ?? '';
+  const what = `${el.tagName.toLowerCase()} "${name}"`;
+  const style = getComputedStyle(el);
+  let problem: string | null = null;
+  if (!el.matches(':focus-visible')) problem = 'bukan :focus-visible';
+  else if (style.outlineStyle === 'none' || parseFloat(style.outlineWidth) === 0)
+    problem = 'outline tidak terlihat';
+  else {
+    const r = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    const label = el instanceof HTMLInputElement ? el.labels?.[0] : null;
+    const ok = hit !== null && (el.contains(hit) || (label?.contains(hit) ?? false));
+    if (!ok) {
+      const by = !hit
+        ? 'di luar viewport'
+        : hit.closest('nav')
+          ? 'BottomNav'
+          : hit.closest('[role="status"]')
+            ? 'toast'
+            : hit.closest('button[aria-label="Tambah tugas"]')
+              ? 'FAB'
+              : `${hit.tagName.toLowerCase()}.${hit.className}`;
+      problem = `tertutup oleh ${by}`;
+    }
+  }
+  return { mark: el.dataset.e2e ?? null, what, problem };
+}
+
+/** Toast "Catatan {sholat} dihapus": catat lewat chip lalu ketuk lagi. */
+async function removedPrayerToast(page: Page, prayer: string, name: string) {
+  await chip(page, prayer).click();
+  await expect(chip(page, prayer)).toHaveAttribute('data-status', 'done');
+  await chip(page, prayer).click();
+  await expect(toastBox(page)).toContainText(`Catatan ${name} dihapus`);
+}
+
 const STAMP = '2026-10-19T00:00:00.000Z';
 const stamps = { createdAt: STAMP, updatedAt: STAMP, deletedAt: null };
 
@@ -826,6 +907,239 @@ test.describe('perangkat Asia/Jakarta', () => {
     );
 
     expect(errors).toEqual([]);
+  });
+
+  test('14. tengah malam tanpa reload: tanggal, prioritas, centang, expand, grup, dan chip ikut Selasa', async ({
+    page
+  }) => {
+    const errors = collectPageErrors(page);
+    // Clock berjalan selama setup (bisa lama di mesin sibuk), lalu dihentikan 30 detik sebelum 00.00.
+    await page.clock.install({ time: at('23:40') });
+    await completeOnboarding(page);
+    await page.getByRole('button', { name: 'Pilih lokasi' }).click();
+    await pickCity(page, 'jakarta pusat', 'Jakarta Pusat');
+    await seed(page, {
+      ...nineItems,
+      tasks: [
+        taskRowData('t-soal', 'Latihan soal', {
+          scheduledDate: '2026-10-25',
+          startTime: '09:00',
+          durationMin: 60
+        })
+      ]
+    });
+
+    await priority(page, 1).fill('Rapikan catatan');
+    await priority(page, 1).blur();
+    await expect.poll(() => storedPriorities(page, '2026-10-26')).toEqual(['- Rapikan catatan']);
+    await expandButton(page).click();
+    await itemCheck(page, 'routine:r1:2026-10-26').click();
+    await expect(itemCheck(page, 'routine:r1:2026-10-26')).toBeChecked();
+    await chip(page, 'isya').click();
+    await expect(chip(page, 'isya')).toHaveAttribute('data-status', 'done');
+    await carriedToggle(page).click();
+
+    await page.clock.pauseAt(new Date('2026-10-26T23:59:30+07:00'));
+    // State Senin masih utuh sebelum tengah malam.
+    await expect(page.getByText('Senin, 26 Oktober 2026', { exact: true })).toBeVisible();
+    await expect(priority(page, 1)).toHaveValue('Rapikan catatan');
+    await expect(itemCheck(page, 'routine:r1:2026-10-26')).toBeChecked();
+    await expect(expandButton(page)).toHaveAttribute('aria-expanded', 'true');
+    await expect(carriedToggle(page)).toHaveAttribute('aria-expanded', 'true');
+
+    await page.clock.runFor('03:00');
+
+    await expect(page.getByText('Selasa, 27 Oktober 2026', { exact: true })).toBeVisible();
+    await expect(priority(page, 1)).toHaveValue('');
+    await expect(agendaItem(page, 'routine:r1:2026-10-26')).toHaveCount(0);
+    await expect(itemCheck(page, 'routine:r1:2026-10-27')).not.toBeChecked();
+    await expect(agenda(page).locator('#agenda-list > li[data-status="done"]')).toHaveCount(0);
+    await expect(expandButton(page)).toHaveAttribute('aria-expanded', 'false');
+    await expect(carriedToggle(page)).toHaveAttribute('aria-expanded', 'false');
+    await expect(carriedGroup(page)).toHaveCount(0);
+    // 00.02 Selasa: kelima chip milik Selasa, belum masuk (Isya Senin yang dicatat tidak terbawa).
+    for (const p of ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'])
+      await expect(chip(page, p)).toHaveAttribute('data-status', 'upcoming');
+
+    expect(errors).toEqual([]);
+  });
+
+  test('17. FAB: TaskSheet tambah → tugas berjadwal hari ini muncul di agenda, fokus kembali ke FAB', async ({
+    page
+  }) => {
+    const errors = collectPageErrors(page);
+    await openToday(page, at('07:00'));
+
+    await addTask(page, {
+      title: 'Ringkas biologi',
+      scheduled: { date: '2026-10-26', start: '13:30', duration: '60' }
+    });
+    // Pola /tugas: sheet tertutup → fokus kembali ke pembukanya.
+    await expect(fab(page)).toBeFocused();
+    const box = agenda(page).getByRole('checkbox', {
+      name: 'Tandai selesai: Ringkas biologi, tugas, 13.30–14.30',
+      exact: true
+    });
+    await expect(box).toBeVisible();
+    await expect(
+      agendaItems(page).filter({
+        has: page.getByRole('checkbox', { name: /^Tandai selesai: Ringkas biologi,/ })
+      })
+    ).toHaveAttribute('data-source', 'task');
+
+    expect(errors).toEqual([]);
+  });
+
+  test('20. toast di DOM sebelum nav: Tab dari FAB (terakhir di konten) langsung ke Urungkan', async ({
+    page
+  }) => {
+    const errors = collectPageErrors(page);
+    await openToday(page, at('07:00'));
+    await removedPrayerToast(page, 'subuh', 'Subuh');
+
+    await fab(page).focus();
+    await page.keyboard.press('Tab');
+    await expect(undo(page)).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(toastBox(page).getByRole('button', { name: 'Tutup' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(nav(page).getByRole('link').first()).toBeFocused();
+
+    expect(errors).toEqual([]);
+  });
+
+  test.describe('360 px', () => {
+    test.use({ viewport: { width: 360, height: 800 } });
+
+    test('19. target sentuh ≥ 44×44, urutan Tab sampai nav, fokus terlihat dan tidak tertutup', async ({
+      page
+    }) => {
+      const errors = collectPageErrors(page);
+      await openToday(page, at('18:00'));
+      await seed(page, {
+        ...nineItems,
+        tasks: [
+          taskRowData('t-soal', 'Latihan soal', {
+            scheduledDate: '2026-10-25',
+            startTime: '09:00',
+            durationMin: 60
+          })
+        ]
+      });
+      await carriedToggle(page).click();
+      await removedPrayerToast(page, 'ashar', 'Ashar');
+      await expect(cta(page)).toBeVisible();
+
+      // Target sentuh: elemen yang diketuk (label pembungkus checkbox, bukan input 20 px).
+      // Layout tanpa <main>; BottomNav hanya berisi link, jadi tombol di body = tombol halaman + toast.
+      const content = page.locator('body');
+      const checkLabels = content.locator('label').filter({ has: page.locator('input[type="checkbox"]') });
+      const targets = [
+        cta(page),
+        ...(await chips(page).getByRole('button').all()),
+        ...(await checkLabels.all()),
+        ...(await content.getByRole('button').all()),
+        expandButton(page),
+        carriedToggle(page),
+        fab(page),
+        undo(page),
+        toastBox(page).getByRole('button', { name: 'Tutup' })
+      ];
+      expect(await checkLabels.count()).toBeGreaterThan(9);
+      for (const target of targets) {
+        if (!(await target.isVisible())) continue;
+        const b = await target.boundingBox();
+        const what = await target.evaluate((el) => el.getAttribute('aria-label') ?? el.textContent?.trim());
+        expect(b?.width, `lebar ${what}`).toBeGreaterThanOrEqual(44);
+        expect(b?.height, `tinggi ${what}`).toBeGreaterThanOrEqual(44);
+      }
+
+      // Urutan Tab: tandai target, mulai dari h1 (titik awal navigasi berurutan), Tab sampai nav.
+      const marks: [string, Locator][] = [
+        ['cta', cta(page)],
+        ['chip', chip(page, 'subuh')],
+        // "Lihat semua" ada di baris judul Agenda, jadi sebelum checkbox timeline.
+        ['expand', expandButton(page)],
+        ['check', agendaItems(page).first().locator('[data-part="check"]')],
+        ['group', carriedToggle(page)],
+        ['fab', fab(page)],
+        ['undo', undo(page)],
+        ['nav', nav(page).getByRole('link').first()]
+      ];
+      for (const [name, loc] of marks) await loc.evaluate((el, n) => el.setAttribute('data-e2e', n), name);
+      await page.getByRole('heading', { level: 1 }).click();
+
+      const stops: Stop[] = [];
+      for (let i = 0; i < 150; i++) {
+        await page.keyboard.press('Tab');
+        const stop = await page.evaluate(focusedStop);
+        stops.push(stop);
+        if (stop.mark === 'nav') break;
+      }
+
+      const order = marks.map(([name]) => stops.findIndex((s) => s.mark === name));
+      expect(
+        order.every((i) => i >= 0),
+        `urutan Tab: ${JSON.stringify(order)}`
+      ).toBe(true);
+      expect(order).toEqual([...order].sort((a, b) => a - b));
+      expect(stops.filter((s) => s.problem).map((s) => `${s.what}: ${s.problem}`)).toEqual([]);
+
+      // Setelah digulir ke bawah: FAB tidak menutupi toast maupun checkbox terakhir.
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      type Box = { x: number; y: number; width: number; height: number } | null;
+      const overlaps = (a: Box, b: Box) =>
+        !!a &&
+        !!b &&
+        a.x < b.x + b.width &&
+        b.x < a.x + a.width &&
+        a.y < b.y + b.height &&
+        b.y < a.y + a.height;
+      const fabBox = await fab(page).boundingBox();
+      const lastCheck = checkLabels.last();
+      expect(overlaps(fabBox, await toastBox(page).locator('> div').boundingBox())).toBe(false);
+      expect(overlaps(fabBox, await lastCheck.boundingBox())).toBe(false);
+
+      expect(errors).toEqual([]);
+    });
+
+    test('19b. /tugas: Tab sampai checkbox tugas terbawah saat toast tampil → tidak ada yang tertutup nav, FAB, atau toast', async ({
+      page
+    }) => {
+      // Bukti scroll-padding-bottom global (app.css), bukan perbaikan khusus Hari Ini.
+      const errors = collectPageErrors(page);
+      await openToday(page, at('07:00'));
+      await seed(page, {
+        tasks: Array.from({ length: 12 }, (_, i) =>
+          taskRowData(`t-${String(i).padStart(2, '0')}`, `Tugas ${i + 1}`, { dueDate: '2026-10-30' })
+        )
+      });
+      await nav(page).getByRole('link', { name: 'Tugas' }).click();
+      await expect(page.getByRole('heading', { level: 1, name: 'Tugas' })).toBeVisible();
+      const rows = page.locator('li[data-task-id]');
+      await expect(rows).toHaveCount(12);
+
+      await rows.first().locator('[data-part="edit"]').click();
+      const sheet = page.getByRole('dialog', { name: 'Ubah tugas' });
+      await sheet.getByRole('button', { name: 'Hapus tugas' }).click();
+      await expect(sheet).toBeHidden();
+      await expect(toastBox(page)).toContainText('Dihapus');
+      await expect(rows).toHaveCount(11);
+
+      const last = rows.last().locator('[data-part="check"]');
+      await last.evaluate((el) => el.setAttribute('data-e2e', 'last'));
+      await page.getByRole('heading', { level: 1, name: 'Tugas' }).click();
+      // Setiap tab stop sampai checkbox terbawah (baris di tengah tergulir ke tepi bawah, belakang nav/toast).
+      const stops: Stop[] = [];
+      for (let i = 0; i < 80 && stops.at(-1)?.mark !== 'last'; i++) {
+        await page.keyboard.press('Tab');
+        stops.push(await page.evaluate(focusedStop));
+      }
+      expect(stops.at(-1)?.mark).toBe('last');
+      expect(stops.filter((s) => s.problem).map((s) => `${s.what}: ${s.problem}`)).toEqual([]);
+
+      expect(errors).toEqual([]);
+    });
   });
 
   test('15. tanpa lokasi: chip tidak dirender; setelah memilih Jakarta chip muncul', async ({ page }) => {
