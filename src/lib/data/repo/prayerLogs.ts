@@ -22,6 +22,19 @@ export async function removePrayerLog(date: LocalDate, prayer: PrayerName): Prom
   await db.prayerLogs.delete(prayerLogId(date, prayer));
 }
 
+/**
+ * Urungkan hapus: memulihkan snapshot apa adanya (at + congregation). Hanya jika belum ada catatan dengan
+ * id itu; jika sudah dicatat ulang → false tanpa menimpa. Sengaja tanpa `canLogPrayer`: memulihkan
+ * bukan mencatat baru, jadi tidak tunduk pada batas waktu §F3.4 (Usulan F2 #2).
+ */
+export async function restorePrayerLog(snapshot: PrayerLog): Promise<boolean> {
+  return db.transaction('rw', db.prayerLogs, async () => {
+    if (await db.prayerLogs.get(snapshot.id)) return false;
+    await db.prayerLogs.put({ ...snapshot });
+    return true;
+  });
+}
+
 /** Mengubah status berjamaah pada catatan yang sudah ada. Tanpa catatan = tidak ada yang diubah. */
 export async function setCongregation(
   date: LocalDate,
