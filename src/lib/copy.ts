@@ -206,6 +206,39 @@ export const copy = {
       body: (label: string) => `Jadwal sholat masih mengikuti ${label}.`,
       update: 'Perbarui lokasi',
       dismiss: 'Tutup'
+    },
+    agenda: {
+      heading: 'Agenda',
+      dueHeading: 'Tenggat hari ini',
+      showAll: 'Lihat semua',
+      showLess: 'Tampilkan lebih sedikit',
+      carriedOver: (n: number) => `Belum selesai sebelumnya (${n})`,
+      /** Usulan #39: pengganti list saat timeline kosong. */
+      empty: 'Belum ada jadwal hari ini.',
+      kindTag: {
+        prayer: 'Sholat',
+        class: 'Kelas',
+        routine: 'Rutin',
+        event: 'Kegiatan',
+        task: 'Tugas'
+      } satisfies Record<RoutineKind | 'prayer' | 'task', string>,
+      /** "Kelas · R. 11B · sampai 08.30"; lokasi kosong dilewati. */
+      meta: (kind: string, location: string, end: string) =>
+        [kind, location.trim(), `sampai ${end}`].filter((x) => x !== '').join(' · '),
+      now: 'Sedang berlangsung',
+      /** Pill "Berikutnya · 25 menit lagi"; ≥ 60 menit memakai format hitung mundur kartu langit. */
+      next: (minutes: number) => {
+        const c = countdown(minutes);
+        const visual = minutes < 60 ? `${minutes} menit lagi` : `${c.visual} lagi`;
+        return { visual: `Berikutnya · ${visual}`, spoken: `Berikutnya, ${c.spoken}` };
+      },
+      overlapsPrayer: (name: string) => `Bertepatan dengan waktu ${name}`,
+      conflict: 'Bentrok dengan agenda lain',
+      /** Usulan #37: label centang menyebut jenis (Usulan F6 #6). kind = huruf kecil, time = "07.00–08.30". */
+      check: (title: string, kind: string, time: string, done: boolean) =>
+        `${done ? 'Batalkan selesai' : 'Tandai selesai'}: ${title}, ${kind}, ${time}`,
+      prayerCheck: (name: string, time: string, done: boolean) =>
+        `${done ? 'Hapus catatan sholat' : 'Tandai sudah sholat'}: ${name}, sholat, ${time}`
     }
   },
 

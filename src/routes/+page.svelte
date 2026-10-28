@@ -3,6 +3,7 @@
    * Hari Ini (PRD §F2), mengikuti docs/design/mockups/hari-ini.mockup.html. Sapaan memakai jam perangkat;
    * kartu langit di zona lokasi; tanggal dari store `today`. Badge streak dan tombol profil tidak dibangun.
    */
+  import AgendaList from '$lib/components/AgendaList.svelte';
   import CityPicker from '$lib/components/CityPicker.svelte';
   import PrayerChips from '$lib/components/PrayerChips.svelte';
   import PrioritiesCard from '$lib/components/PrioritiesCard.svelte';
@@ -63,6 +64,7 @@
 
   {#if dayReady}
     <PrioritiesCard />
+    <AgendaList {config} />
   {/if}
 </div>
 

@@ -53,4 +53,31 @@ describe('copy.today', () => {
     expect(p.inputLabel(3)).toBe('Prioritas 3');
     expect(p.checkLabel('Belajar fisika')).toBe('Tandai selesai: Belajar fisika');
   });
+
+  it('agenda: label centang menyebut jenis (Usulan #37)', () => {
+    const a = copy.today.agenda;
+    expect(a.check('Matematika', 'kelas', '07.00–08.30', false)).toBe(
+      'Tandai selesai: Matematika, kelas, 07.00–08.30'
+    );
+    expect(a.check('Matematika', 'kelas', '07.00–08.30', true)).toBe(
+      'Batalkan selesai: Matematika, kelas, 07.00–08.30'
+    );
+    expect(a.prayerCheck('Dzuhur', '11.42', false)).toBe('Tandai sudah sholat: Dzuhur, sholat, 11.42');
+    expect(a.prayerCheck('Dzuhur', '11.42', true)).toBe('Hapus catatan sholat: Dzuhur, sholat, 11.42');
+  });
+
+  it('agenda: pill berikutnya, meta, grup', () => {
+    const a = copy.today.agenda;
+    expect(a.next(25)).toEqual({ visual: 'Berikutnya · 25 menit lagi', spoken: 'Berikutnya, 25 menit lagi' });
+    expect(a.next(59).visual).toBe('Berikutnya · 59 menit lagi');
+    expect(a.next(60)).toEqual({
+      visual: 'Berikutnya · 1 j 00 m lagi',
+      spoken: 'Berikutnya, 1 jam 0 menit lagi'
+    });
+    expect(a.next(65).visual).toBe('Berikutnya · 1 j 05 m lagi');
+    expect(a.meta('Kelas', 'R. 11B', '08.30')).toBe('Kelas · R. 11B · sampai 08.30');
+    expect(a.meta('Rutin', '  ', '17.00')).toBe('Rutin · sampai 17.00');
+    expect(a.carriedOver(2)).toBe('Belum selesai sebelumnya (2)');
+    expect(a.overlapsPrayer('Dzuhur')).toBe('Bertepatan dengan waktu Dzuhur');
+  });
 });
