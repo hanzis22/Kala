@@ -5,6 +5,7 @@
    * Centang dikendalikan data store: tulis gagal → toast galat dan DOM dikembalikan ke nilai store.
    * Fokus yang bergantung pada data menunggu liveQuery lewat `$effect`, tanpa timer.
    */
+  import Plus from '@lucide/svelte/icons/plus';
   import TaskList from '$lib/components/TaskList.svelte';
   import TaskSheet, { type TaskSheetMode } from '$lib/components/TaskSheet.svelte';
   import { copy } from '$lib/copy';
@@ -140,7 +141,8 @@
     if (!el) {
       // Urungkan: tunggu baris yang dipulihkan muncul.
       if (p.target !== null && p.awaitGone === null) return;
-      el = (p.viaGroup ? carriedToggle : null) ?? heading;
+      // bind:this bisa basi saat grup baru saja dilepas dari DOM.
+      el = (p.viaGroup && carriedToggle?.isConnected ? carriedToggle : null) ?? heading;
     }
     if (!el) return;
     el.focus();
@@ -284,11 +286,15 @@
   let sheetActive = $state(false);
   let sheetMode = $state<TaskSheetMode>({ kind: 'add' });
 
-  function editTask(task: Task) {
-    sheetMode = { kind: 'edit', task };
+  function openSheet(mode: TaskSheetMode) {
+    sheetMode = mode;
     sheetActive = true;
     sheetOpen = true;
   }
+
+  /** FAB (Usulan #8): mode tambah lewat instance yang sama; fokus kembali ke FAB saat sheet tertutup. */
+  const addTask = () => openSheet({ kind: 'add' });
+  const editTask = (task: Task) => openSheet({ kind: 'edit', task });
 
   async function removeTask(task: Task) {
     const neighbor = neighborIn(taskRows, task.id);
@@ -478,6 +484,22 @@
       </div>
     {/if}
   </section>
+
+  <!-- Ruang setinggi FAB (60 px + jarak) agar baris terakhir bisa digulir ke atas FAB. -->
+  <div class="h-[76px] shrink-0" aria-hidden="true"></div>
+
+  <div
+    class="pointer-events-none fixed inset-x-0 bottom-[calc(104px+env(safe-area-inset-bottom))] z-10 mx-auto flex max-w-lg justify-end px-5"
+  >
+    <button
+      type="button"
+      class="pointer-events-auto flex size-[60px] items-center justify-center rounded-xl bg-brand text-on-brand shadow-fab hover:bg-brand-pressed"
+      aria-label={copy.tasks.add}
+      onclick={addTask}
+    >
+      <Plus size={24} strokeWidth={2} aria-hidden="true" />
+    </button>
+  </div>
 
   <TaskSheet
     bind:open={sheetOpen}
