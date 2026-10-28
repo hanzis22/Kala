@@ -13,6 +13,7 @@
   import { setLocation } from '$lib/data/repo/settings';
   import { toHijri } from '$lib/domain/hijri';
   import { canLogPrayer, prayerStatus, prayerTimes, toPrayerConfig } from '$lib/domain/prayer';
+  import { skyTone } from '$lib/domain/sky';
   import { weeklyPrayerGrid } from '$lib/domain/stats';
   import { toZoned } from '$lib/domain/dates';
   import {
@@ -43,8 +44,8 @@
   const hijri = $derived(toHijri(date, settings.current?.hijriOffsetDays ?? 0));
   const logFor = (p: PrayerName) => prayerLogs.items.find((l) => l.date === date && l.prayer === p) ?? null;
 
-  /** Kartu langit (SENJA.md): fajar dari Subuh sampai sebelum Ashar, senja dari Ashar sampai Subuh berikutnya. */
-  const sky = $derived(times && nowMinutes >= times.subuh && nowMinutes < times.ashar ? 'fajar' : 'senja');
+  /** Kartu langit: satu aturan dengan Hari Ini (Usulan F2 #4), senja = [Ashar, Isya), fajar = sisanya. */
+  const sky = $derived(config ? skyTone(now.current, config) : 'fajar');
 
   function note(p: PrayerName, status: PrayerStatus): string {
     if (!times) return '';

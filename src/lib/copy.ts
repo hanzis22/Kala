@@ -3,9 +3,20 @@
  * Dikumpulkan di sini agar siap i18n (Paraglide, Fase 3).
  */
 import type { TaskRepoError } from '$lib/data/repo/tasks';
+import type { Greeting } from '$lib/domain/day';
 import type { Weekday } from '$lib/domain/recurrence';
 import type { TaskError, TaskFilter } from '$lib/domain/tasks';
 import type { PrayerName, Priority, RoutineKind, TaskType } from '$lib/domain/types';
+
+const worshipMethod = 'Metode Kemenag';
+
+/** Teks hitung mundur (rencana F2 #18, #26): visual "1 j 05 m" / "45 m", dibacakan "1 jam 5 menit lagi". */
+function countdown(minutes: number): { visual: string; spoken: string } {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return { visual: `${m} m`, spoken: `${m} menit lagi` };
+  return { visual: `${h} j ${String(m).padStart(2, '0')} m`, spoken: `${h} jam ${m} menit lagi` };
+}
 
 export const copy = {
   appName: 'Kala',
@@ -57,9 +68,7 @@ export const copy = {
 
   pages: {
     today: {
-      title: 'Hari Ini',
-      emptyTitle: 'Harimu masih kosong',
-      emptyBody: 'Jadwal sholat, prioritas, dan agenda harianmu akan tampil di sini.'
+      title: 'Hari Ini'
     },
     schedule: {
       title: 'Jadwal',
@@ -116,7 +125,7 @@ export const copy = {
 
   worship: {
     scheduleHeading: 'Jadwal sholat hari ini',
-    method: 'Metode Kemenag',
+    method: worshipMethod,
     noteDone: 'Sudah',
     noteDoneCongregation: 'Sudah · berjamaah',
     noteNow: (minutes: number) => (minutes < 1 ? 'Baru saja masuk' : `Sudah masuk ${minutes} menit lalu`),
@@ -139,6 +148,40 @@ export const copy = {
     logSheetDescription: 'Catatan ini hanya tersimpan di perangkatmu.',
     congregation: 'Berjamaah',
     undo: 'Batalkan catatan'
+  },
+
+  today: {
+    greeting: {
+      pagi: 'Selamat pagi',
+      siang: 'Selamat siang',
+      sore: 'Selamat sore',
+      malam: 'Selamat malam'
+    } satisfies Record<Greeting, string>,
+    /** "Selamat pagi, Dhani"; tanpa koma jika nama kosong. */
+    heading: (greeting: string, name: string) => (name.trim() ? `${greeting}, ${name.trim()}` : greeting),
+    sky: {
+      active: (name: string) => `Waktu ${name}`,
+      entered: 'Sudah masuk',
+      toward: (name: string) => `Menuju ${name}`,
+      at: (name: string, time: string, tomorrow: boolean) =>
+        `${name}${tomorrow ? ' besok' : ''} pukul ${time}`,
+      countdown,
+      /** Baris sub mode CTA: "Isya pukul 18.57, 1 j 05 m lagi"; versi dibacakan memakai `spoken` (sudah memuat "lagi"). */
+      sub: (at: string, minutes: number) => {
+        const c = countdown(minutes);
+        return { visual: `${at}, ${c.visual} lagi`, spoken: `${at}, ${c.spoken}` };
+      },
+      cta: (name: string) => `Tandai sudah sholat ${name}`,
+      footerLocation: (label: string) => `${label} · ${worshipMethod}`,
+      nowAt: (time: string) => `Sekarang ${time}`
+    },
+    banner: {
+      region: 'Zona waktu',
+      title: 'Lokasimu berubah?',
+      body: (label: string) => `Jadwal sholat masih mengikuti ${label}.`,
+      update: 'Perbarui lokasi',
+      dismiss: 'Tutup'
+    }
   },
 
   location: {
