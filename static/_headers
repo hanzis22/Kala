@@ -1,9 +1,9 @@
 # Header keamanan untuk Cloudflare Workers static assets (format sama dengan Pages). Lihat CLAUDE.md "Keamanan dan privasi".
 # Placeholder hash di script-src diganti saat build oleh scripts/csp-hashes.mjs dengan hash
 # sha256 skrip inline (boot SvelteKit + skrip tema di app.html). Build gagal jika tersisa.
-# Satu-satunya pihak ketiga yang diizinkan: Cloudflare Web Analytics (tanpa cookie).
+# Tanpa pihak ketiga (PRD §8): analytics dihapus 2026-11-03.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' __INLINE_SCRIPT_HASHES__ https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://cloudflareinsights.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' __INLINE_SCRIPT_HASHES__; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer
