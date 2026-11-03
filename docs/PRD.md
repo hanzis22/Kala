@@ -32,12 +32,18 @@ Planner harian berbentuk PWA untuk **pelajar** yang menyatukan **jadwal belajar,
 | F5 | Rutin berulang | Jadwal |
 | F6 | Tugas (daftar, deadline, mapel, prioritas) | Tugas |
 | F7 | Tambah cepat (tombol +) dengan parser bahasa alami sederhana | global |
-| F8 | Pengaturan: lokasi, metode sholat, tema, backup/restore | Lainnya |
+| F8a | Pengaturan: nama, lokasi, parameter sholat, Hijriah, tema, minggu | Lainnya |
+| F8b | Data: ekspor, impor (ganti semua), hapus semua, pengingat backup | Lainnya |
 | F9 | PWA: bisa di-install, berjalan offline | – |
+| F10 | Layout lebar: tablet dan laptop (navigasi samping, dua panel) | global |
 
 ### Fase 2 (setelah beta)
 
-Habit tracker + streak, tilawah, dzikir & doa, Pomodoro/fokus, hitung mundur, Eisenhower Matrix (tampilan dari Tugas), kalender bulanan dengan tanggal Hijriah, ekspor `.ics` (termasuk jadwal sholat sebagai pengingat), puasa sunnah.
+Habit tracker + streak, tilawah, dzikir & doa, Pomodoro/fokus, hitung mundur, Eisenhower Matrix (tampilan dari Tugas), kalender bulanan dengan tanggal Hijriah, ekspor `.ics` (kelas dan tugas dulu; jadwal sholat sebagai pengingat hanya jika lolos uji perangkat, lihat §10 no. 4), puasa sunnah.
+
+**Gate sebelum Fase 2** (semua wajib diputuskan dan dicatat di Ledger sebelum branch Fase 2 pertama dibuka): §10 no. 5 (sumber dzikir/doa), §10 no. 10 (centang susulan), aturan streak, mode hari berat, dan habit berjangkar sholat. Usulan default ada di §10 no. 10–12.
+
+**Urutan Fase 2 (dari pola yang diadopsi):** habit (streak pemaaf, jangkar sholat, hari berat) → chip hitung mundur di Hari Ini → fokus (lanjut setelah app ditutup, Wake Lock) → `.ics` kelas/tugas → `.ics` sholat (setelah uji perangkat) → habit n×/minggu (hanya jika diminta peserta beta). Posisi item Fase 2 lain (tilawah, dzikir, matrix, kalender bulanan, puasa sunnah, rilis Google Play) ditentukan saat gate.
 
 **Rilis Google Play (akhir Fase 2):** bungkus PWA sebagai app Android dengan TWA (PWABuilder atau Bubblewrap), kode web tetap sama. Butuh akun Google Play Developer (USD 25, sekali bayar) dan file `assetlinks.json` di `static/.well-known/`. App Store (Capacitor + notifikasi lokal) dievaluasi setelah traksi terbukti.
 
@@ -81,8 +87,8 @@ Sebagai pelajar baru, saya ingin menyiapkan app dalam satu menit supaya Hari Ini
 1. Langkah 1: nama panggilan (opsional, maks 30 karakter).
 2. Langkah 2: lokasi. Tombol "Pakai lokasi saya" (Geolocation API) **atau** pilih kota dari daftar offline (min. 100 kota/kabupaten Indonesia + zona waktunya). Menolak izin GPS tidak memblokir alur.
 3. Langkah 3: tambah 1–3 mata pelajaran + jadwalnya, atau "Lewati, isi nanti".
-4. Setelah selesai: panggil `navigator.storage.persist()`, simpan `Settings.onboardedAt`, arahkan ke `/`.
-4a. **iPhone/iPad yang membuka lewat Safari (bukan mode terpasang):** tampilkan layar tambahan "Pasang Kala di layar utama" dengan panduan bergambar (Bagikan → Tambahkan ke Layar Utama) dan alasan singkatnya: data lebih aman dan app terasa seperti app biasa. Deteksi: `navigator.standalone !== true` dan user agent iOS. Bisa dilewati; jika dilewati, banner pengingat muncul lagi setelah 3 hari.
+4. Setelah selesai: panggil `navigator.storage.persist()` **di handler ketukan tombol selesai** (bukan saat halaman dimuat; Firefox menampilkan prompt), dengan deteksi fitur; hasil ditolak atau API tidak ada tidak memblokir alur. Lalu simpan `Settings.onboardedAt`, arahkan ke `/`.
+4a. **iPhone/iPad yang membuka lewat Safari (bukan mode terpasang):** tampilkan layar tambahan "Pasang Kala di layar utama" dengan panduan bergambar (Bagikan → Tambahkan ke Layar Utama) dan alasan konkret yang ditulis sendiri: Safari bisa menghapus data situs yang lama tidak dibuka, sedangkan app yang dipasang di layar utama datanya lebih awet. Angka hari hanya ditulis jika sudah diverifikasi ke dokumentasi WebKit. Deteksi: `navigator.standalone !== true` dan user agent iOS. Bisa dilewati; jika dilewati, banner pengingat muncul lagi setelah 3 hari.
 5. Onboarding hanya muncul jika `Settings.onboardedAt` kosong.
 
 ### F2. Hari Ini
@@ -103,6 +109,7 @@ Kriteria:
 - Status sholat di agenda dan di chip sengaja berbeda. Status, pill, dan "Berikutnya" sholat di agenda memakai blok 15 menit sejak awal waktu (agenda menjawab "jam berapa"). Status chip dan kartu langit memakai rentang fikih §F3.5 (menjawab "sudah/boleh dicatat"). Item sholat di agenda memudar mengikuti fikih: pudar hanya jika sudah dicatat atau rentang fikihnya habis, jadi tidak pudar selama masih bisa dicatat walaupun blok 15 menitnya sudah lewat. Perbedaan ini bukan bug.
 - Centang item agenda: rutin dan kelas → `Completion`; tugas → `Task.status = 'done'`; sholat → `PrayerLog`.
 - Melewati tengah malam saat app terbuka: "hari ini" ikut berganti tanpa reload (§7.1).
+- **Geser jadwal pengerjaan (Polish, sebelum beta):** baris tugas belum selesai dengan jadwal pengerjaan punya aksi geser. Tugas berjadwal hari ini: "Besok" (`scheduledDate` = besok). Tugas di grup "Belum selesai sebelumnya": "Kerjakan hari ini" (`scheduledDate` = hari ini). Jam dan durasi tetap. Boleh melewati tenggat; label "Lewat tenggat" yang ada sudah cukup, tanpa peringatan merah. Toast "… · Urungkan" dan pola fokus mengikuti §F6 (baris yang hilang dari tampilan → fokus ke baris berikutnya).
 
 Keputusan implementasi F2 (28 Okt 2026):
 
@@ -252,14 +259,25 @@ Aturan parser Fase 1 (bahasa Indonesia, tidak peka huruf besar):
 
 Sisa teks setelah token dikenali menjadi judul. Parser adalah fungsi murni `parseQuickAdd(text, now, subjects)` dengan minimal 30 kasus uji.
 
+Tugas yang disimpan dari tambah cepat diberi `Task.createdVia = 'quick'`; dari form tugas biasa `'form'`; data lama tanpa field ini dibaca sebagai `null` (untuk metrik beta §9). Jenis Habit **tidak** ditambahkan ke tambah cepat di Fase 1.
+
 ### F8. Pengaturan
+
+Dikerjakan sebagai dua fitur (dua branch + PR): **F8a** (item 1–5 dan 7) lalu **F8b** (item 6, Data).
 
 1. Nama panggilan.
 2. Lokasi (GPS / pilih kota), ihtiyat, koreksi per waktu sholat.
 3. **Penyesuaian tanggal Hijriah** −2 s.d. +2 hari. Alasan: kalender Umm al-Qura bawaan browser bisa berbeda sehari dengan keputusan Kemenag.
 4. Tema: Ikuti sistem (default) / Terang / Gelap / Ikuti waktu sholat (gelap otomatis dari Isya sampai Subuh di lokasi tersimpan; di luar itu mengikuti tema sistem; tanpa lokasi = ikuti sistem).
 5. Hari pertama minggu (Senin default), tampilkan Minggu di timetable.
-6. Data: **Ekspor** (file JSON), **Impor** (pilih: gabungkan atau ganti semua), **Hapus semua data** (konfirmasi dengan mengetik "HAPUS").
+6. Data (F8b):
+   1. **Ekspor** file JSON ber-envelope `{ app: 'kala', dataVersion, appVersion, exportedAt, tables }`. Isi: semua baris dengan `deletedAt == null`; habit nonaktif (`activeUntil` terisi) tetap ikut; log yang induknya sudah dihapus (completion rutin terhapus, log habit/tugas terhapus) dibuang. Nama file tanpa nama user, mis. `kala-cadangan-2026-11-03.json`. Layar ekspor memberi tahu bahwa file berisi catatan pribadi (termasuk catatan sholat) dan tidak dienkripsi.
+   2. **Impor = ganti semua data** (tidak ada mode gabungkan). Urutan: tolak file > 5 MB sebelum `JSON.parse` → validasi Valibot `strictObject` per tabel yang memakai validator domain yang sama (batas teks, ULID, `YYYY-MM-DD`, `HH:mm`); satu baris tidak valid = seluruh file ditolak, pesan menyebut tabel dan jumlah baris → tampilkan ringkasan isi file vs data sekarang → konfirmasi → simpan snapshot (item 6.4) → ganti semua tabel dalam satu transaksi Dexie `rw` → kirim `reload` lewat `BroadcastChannel('kala')` ke tab lain → muat ulang.
+   3. **Hapus semua data**: tampilkan ringkasan jumlah data yang akan hilang, lalu konfirmasi dengan mengetik "HAPUS". Setelah berhasil, kirim `reload` yang sama ke tab lain.
+   4. **Snapshot sebelum impor**: salinan data sekarang disimpan di database IndexedDB terpisah `kala-pra-impor` (satu slot, ditimpa tiap impor; bukan tabel baru di DB `kala`). Jika menulis snapshot gagal, impor dibatalkan. Tombol "Kembalikan data sebelum impor" tersedia 7 hari, setelah itu snapshot dihapus saat app dibuka.
+   5. Setelah ekspor pertama berhasil, panggil lagi `navigator.storage.persist()` (dari ketukan yang sama). Tampilkan status penyimpanan: "Permanen" atau "Bisa dibersihkan browser".
+   6. **Ringkasan beta**: tombol yang menampilkan metrik §9 yang dihitung dari data di perangkat, berupa angka saja tanpa isi (tanpa judul, nama, atau lokasi), dengan tombol salin. Tidak ada yang dikirim otomatis. Bisa dihapus setelah beta.
+   7. Pengingat backup: lihat §F9.5.
 7. Tentang: versi app, kebijakan privasi, kirim masukan (tautan formulir).
 
 ### F9. PWA & offline
@@ -268,8 +286,31 @@ Sisa teks setelah token dikenali menjadi judul. Parser adalah fungsi murni `pars
 2. Seluruh app berjalan tanpa jaringan setelah kunjungan pertama, termasuk font (self-host, bukan Google Fonts CDN).
 3. Prompt instal sendiri setelah user memakai app 2 hari berbeda, bisa ditutup dan tidak muncul lagi selama 14 hari.
 4. Saat versi baru tersedia: toast "Versi baru tersedia · Muat ulang".
-5. **Pengingat backup:** karena data hanya ada di perangkat, tampilkan pengingat "Simpan cadangan data" setiap 14 hari (bisa dimatikan di pengaturan). Simpan waktu ekspor terakhir di `Settings`.
+5. **Pengingat backup** (dibangun di F8b): karena data hanya ada di perangkat, tampilkan pengingat "Simpan cadangan data" jika ekspor terakhir (`Settings.lastExportAt`, atau `onboardedAt` jika belum pernah) sudah lewat **14 hari** saat app berjalan terpasang (`display-mode: standalone` atau `navigator.standalone`), atau **5 hari** saat dibuka di browser. "Nanti" menunda ke besok (`Settings.backupSnoozeUntil`, `LocalDate`). Bisa dimatikan di pengaturan (`Settings.backupReminder`).
 6. Akses: satu URL untuk semua perangkat (Android, iPhone/iPad, laptop, Chromebook). Data tidak berpindah antar perangkat kecuali lewat ekspor/impor.
+7. **Satu banner per sesi:** pengingat backup (§F9.5), banner pasang iPhone (§F1.4a), dan prompt instal (§F9.3) tidak tampil bersamaan; dalam satu sesi app hanya satu yang muncul, dengan prioritas backup → pasang iPhone → prompt instal. Yang tidak tampil tidak dianggap ditutup.
+
+### F10. Layout lebar (tablet dan laptop)
+
+Sebagai pelajar yang memakai iPad/tablet atau laptop sebagai perangkat utama, saya ingin layar lebar terpakai, bukan satu kolom HP di tengah layar.
+
+Dikerjakan setelah F8b, sebelum beta. Layout ditentukan oleh **lebar layar**, bukan jenis perangkat (iPad Split View sepertiga lebar mendapat tampilan HP).
+
+| Kelas | Lebar | Navigasi | Pola konten |
+|---|---|---|---|
+| Compact | < 768 px | BottomNav (seperti sekarang) | 1 kolom, bottom sheet, FAB |
+| Medium | 768–1023 px | Nav rail kiri (ikon + label) | 1 kolom lebih lebar; grid Minggu selebar layar; sheet tampil sebagai dialog tengah |
+| Expanded | ≥ 1024 px | Sidebar kiri dengan tombol "Tambah" | Dua panel: Hari Ini (kiri: kartu langit, chip, prioritas; kanan: agenda), Tugas (daftar + panel detail), Jadwal (Hari + panel detail sesi) |
+
+1. CSS-first: utility breakpoint dan `@container`, tanpa deteksi user agent dan tanpa layout berbasis `matchMedia` (adapter-static + prerender akan berkedip saat hydrate). BottomNav dan nav rail memakai satu sumber data tab.
+2. Prasyarat (P1 F10): angka posisi yang terikat BottomNav (padding bawah layout, posisi FAB, `scroll-padding-bottom` §8) dipindah ke CSS custom properties yang di-override per breakpoint; aturan WCAG 2.4.11 di §8 tetap berlaku di semua kelas.
+3. Sheet memakai primitive yang sama (bits-ui) dengan varian per kelas: bottom sheet / dialog tengah / panel samping. Pola fokus F6/F2 (kembali ke elemen asal, fokus setelah hapus) wajib lolos e2e di semua kelas.
+4. Detail panel dibuka lewat URL (mis. `/tugas?id=…`) agar tombol Back benar; di Compact URL yang sama membuka sheet.
+5. Toast di Medium/Expanded: pojok kiri bawah, tanpa offset BottomNav.
+6. Layar lebar tanpa data menampilkan penjelasan bahwa data Kala tersimpan per perangkat, dengan tautan ke Impor (§F8.6.2).
+7. Tanpa shortcut satu huruf (WCAG 2.1.4); command palette tetap Fase 3.
+8. e2e: subset bertanda `@wide` dijalankan di 768×1024 dan 1280×800 (tidak menggandakan seluruh suite). Screenshot tinjauan: 360/390/768/1280 × terang/gelap.
+9. CLAUDE.md "Mobile-first, lebar acuan 390 px … form sebagai bottom sheet" diperbarui di PR F10.
 
 ## 5. Model data
 
@@ -287,14 +328,14 @@ Definisi lengkap: `src/lib/domain/types.ts`. Skema database: `src/lib/data/db.ts
 
 | Entitas | Kunci | Isi utama | Fase |
 |---|---|---|---|
-| `Settings` | `key = 'app'` (singleton) | nama, lokasi, parameter sholat, offset Hijriah, tema, onboardedAt, schemaVersion | 1 |
+| `Settings` | `key = 'app'` (singleton) | nama, lokasi, parameter sholat, offset Hijriah, tema, onboardedAt, schemaVersion, lastExportAt, backupReminder, backupSnoozeUntil (F8b) | 1 |
 | `Subject` | `id` | nama, singkatan (`abbr`, opsional), guru, ruang | 1 |
 | `Routine` | `id` | kind (`class` / `routine` / `event`), judul, subjectId, startTime, durationMin, rrule, dtstart, until, exdates, overrides | 1 |
-| `Task` | `id` | judul, jenis, subjectId, dueDate/dueTime, scheduledDate/startTime/durationMin, prioritas, quadrant, status | 1 |
+| `Task` | `id` | judul, jenis, subjectId, dueDate/dueTime, scheduledDate/startTime/durationMin, prioritas, quadrant, status, `createdVia` (`'quick'`/`'form'`/null, F7) | 1 |
 | `Completion` | `id = sourceId:date` | penanda selesai untuk satu kejadian rutin/kelas di satu tanggal | 1 |
 | `PrayerLog` | `id = date:prayer` | sholat apa, tanggal, berjamaah, waktu dicatat | 1 |
-| `DayEntry` | `date` | 3 prioritas; Fase 3: mood, catatan, syukur | 1 |
-| `Habit`, `HabitLog` | `id`, `id = habitId:date` | habit dengan masa aktif + log per ID per tanggal | 2 |
+| `DayEntry` | `date` | 3 prioritas; Fase 2: `hardDay` (§10 no. 11); Fase 3: mood, catatan, syukur | 1 |
+| `Habit`, `HabitLog` | `id`, `id = habitId:date` | habit dengan masa aktif + log per ID per tanggal; `anchor` opsional (§10 no. 12) | 2 |
 | `TilawahLog` | `date` | jumlah halaman, posisi terakhir | 2 |
 | `Countdown` | `id` | judul, tanggal | 2 |
 | `FocusSession` | `id` | taskId, mulai, `endsAt`, durasi, selesai | 2 |
@@ -317,8 +358,8 @@ Catatan desain:
 | `agenda.ts` | `agendaFor(date, sources, now)`, `markConflicts(items)`, `assignLanes(items)` | bentrok = irisan [mulai, selesai) |
 | `hijri.ts` | `toHijri(date, offsetDays)` | `Intl.DateTimeFormat('id-ID-u-ca-islamic-umalqura')` + offset |
 | `quickadd.ts` | `parseQuickAdd(text, now, subjects)` | aturan §F7 |
-| `stats.ts` | `weeklyPrayerGrid(...)`, Fase 2: `streak(...)` | |
-| `backup.ts` | `exportAll()`, `validateBackup(json)`, `mergeBackup(...)` | validasi skema dengan Valibot |
+| `stats.ts` | `weeklyPrayerGrid(...)`, `betaSummary(...)` (F8b), Fase 2: `streak(...)`, `resolveHabitTime(...)` | aturan streak §10 no. 11–12 |
+| `backup.ts` | `buildEnvelope(tables, meta)`, `validateBackup(text)`, `summarizeData(tables)` | Valibot `strictObject`; impor = ganti semua (tanpa merge, §F8.6.2); I/O database di repo, bukan di sini |
 
 ## 7. Aturan kasus pinggiran
 
@@ -340,7 +381,7 @@ Catatan desain:
 | Performa | Lighthouse ≥ 90 semua kategori (mobile). JS awal < 150 KB gzip. Interaksi centang < 100 ms. |
 | Perangkat uji | Android kelas menengah (Chrome) + iPhone (Safari, mode PWA terpasang) |
 | Aksesibilitas | WCAG 2.2 AA: kontras sesuai token Senja, target sentuh ≥ 44 px, fokus keyboard terlihat (`focus-ring`), label untuk semua ikon, hormati `prefers-reduced-motion`. Elemen yang difokus tidak boleh tertutup elemen fixed (WCAG 2.4.11): `html { scroll-padding-bottom }` global di `src/app.css` dihitung dari offset + tinggi UndoToast, jadi angkanya wajib diubah jika posisi atau tinggi toast berubah |
-| Privasi | Nol permintaan jaringan selain aset app sendiri dan analytics tanpa cookie. Tidak ada data user yang dikirim ke mana pun. |
+| Privasi | Nol permintaan jaringan selain aset app sendiri. Tanpa analytics dan tanpa skrip pihak ketiga (keputusan 2026-11-03, lihat §9). Tidak ada data user yang dikirim ke mana pun. Izin sensitif (notifikasi, geolokasi, `storage.persist()`) hanya diminta dari ketukan eksplisit user, tidak pernah saat halaman dimuat. |
 | Offline | Semua fitur Fase 1 berjalan tanpa jaringan |
 | Bahasa | Bahasa Indonesia, sapaan "kamu", teks UI terpusat agar siap i18n (Paraglide) di Fase 3 |
 | Keamanan | Tidak ada `{@html}` dengan data user; CSP ketat lewat `_headers` |
@@ -358,7 +399,18 @@ Beta 2 minggu dengan 15–20 pelajar.
 | Tugas dibuat lewat tambah cepat (vs form manual) | ≥ 50% |
 | Laporan selisih jadwal sholat | 0 |
 
-Event analytics (Cloudflare Web Analytics, tanpa data pribadi): `onboarding_done`, `task_created{via}`, `prayer_logged`, `quickadd_parsed{fields}`, `pwa_installed`.
+**Cara mengukur (diputuskan 2026-11-03):** tidak ada event analytics. Cloudflare Web Analytics tidak punya custom event dan tidak punya identitas user, jadi metrik per user di atas tidak bisa diukur dengannya; beacon dan izinnya di CSP dihapus. Metrik dihitung di perangkat oleh "Ringkasan beta" (§F8.6.6) dan disalin peserta secara manual di akhir beta:
+
+| Metrik | Sumber di perangkat |
+|---|---|
+| Hari aktif | Tanggal unik dari `prayerLogs`, `completions`, `dayEntries`, dan `createdAt`/`updatedAt` tugas dalam periode beta |
+| Onboarding selesai | `Settings.onboardedAt` |
+| Catatan sholat per hari aktif | Jumlah `prayerLogs` ÷ hari aktif |
+| Tugas via tambah cepat | `Task.createdVia` (`'quick'` vs `'form'`; `null` tidak dihitung) |
+| Selisih jadwal sholat | Laporan peserta (formulir masukan) |
+| Terpasang di layar utama | Ditanyakan ke peserta |
+
+Peserta beta kemungkinan termasuk anak di bawah umur: persetujuan orang tua/wali dan dasar hukumnya (UU PDP) dicek sebelum rekrutmen.
 
 ## 10. Pertanyaan terbuka
 
@@ -367,10 +419,13 @@ Event analytics (Cloudflare Web Analytics, tanpa data pribadi): `onboarding_done
 | 1 | Nama app final | **Diputuskan: Kala.** Ada app lain bernama "Kala" di App Store (penghitung hari, pelacak waktu kerja), jadi listing toko memakai deskriptor dan merek perlu dicek di PDKI kelas 9 dan 42 |
 | 2 | Warna berbeda per mata pelajaran? Senja baru punya satu warna `class` | Satu warna di Fase 1; evaluasi setelah beta |
 | 3 | Hari Hijriah berganti saat Maghrib? | Tidak (lihat §7.6) |
-| 4 | Pengingat sholat: cukup ekspor `.ics` di Fase 2, atau perlu web push (butuh server)? | `.ics` dulu |
+| 4 | Pengingat sholat: cukup ekspor `.ics` di Fase 2, atau perlu web push (butuh server)? | `.ics` dulu, tanpa web push. Waktu sholat bergeser hampir tiap hari, jadi `.ics` sholat = satu VEVENT per hari yang basi jika lokasi/ihtiyat berubah. Urutan: `.ics` kelas (RRULE §F5.5) dan tenggat tugas dulu; `.ics` sholat hanya jika impor + VALARM terbukti jalan di Google Calendar Android dan Kalender iOS (hasil di Receipts planner). Judul di-escape sesuai RFC 5545 §3.3.11 dan baris di-fold 75 oktet. Tautan "Tambah ke Google Calendar" hanya dari ketukan eksplisit (judul keluar ke Google) |
 | 5 | Sumber teks dzikir & doa untuk Fase 2, siapa yang memverifikasi | Perlu ditentukan sebelum Fase 2 |
 | 6 | Utang teknis: migrasi alias `$lib` ke `#lib` (SvelteKit 3). `$lib` saat ini dipertahankan lewat opsi `alias` yang deprecated (lihat `vite.config.ts`) | Tetap `$lib` sampai shadcn-svelte mendukung `#lib`; migrasi sebelum SvelteKit menghapus `alias` |
 | 7 | Blok sesi tunggal di bawah ±47 menit di grid Minggu lebih pendek dari target sentuh 44 px (sesi bentrok sudah diselesaikan, lihat keputusan F4) | Biarkan; evaluasi setelah beta |
 | 8 | FAB "+" di `/jadwal` langsung membuka sheet sesi kelas. Saat F7 (tambah cepat) ada, apakah FAB tetap khusus sesi kelas atau membuka tambah cepat/pilihan jenis? | Tetap membuka sheet sesi kelas; ditinjau ulang saat F7 |
 | 9 | Tampilan Hari di `/jadwal` hanya punya navigasi ‹ / › dan "Hari ini". Perlu pemilih tanggal untuk melompat jauh? | Tanpa date picker; dievaluasi saat beta |
-| 10 | Centang rutin untuk tanggal yang sudah lewat (`/jadwal` Hari)? Di Fase 1 centang rutin/kelas/kegiatan hanya ada di agenda Hari Ini (keputusan F2) | Tidak di Fase 1; wajib ditinjau ulang sebelum habit/streak Fase 2 |
+| 10 | Centang rutin untuk tanggal yang sudah lewat (`/jadwal` Hari)? Di Fase 1 centang rutin/kelas/kegiatan hanya ada di agenda Hari Ini (keputusan F2) | Tidak di Fase 1; wajib diputuskan di gate Fase 2 (§2). Usulan default (disetujui arah, 2026-11-03): centang susulan **habit** ≤ 7 hari dari papan habit, menyambung streak; rutin/kelas/kegiatan tetap hanya hari ini |
+| 11 | Aturan streak habit dan mode hari berat | Usulan default: streak hanya menghitung hari terjadwal (`Habit.days`); satu hari bolong tidak memutus, dua hari terjadwal berturut-turut bolong = reset; dihitung `streak(...)` di `stats.ts`, tidak disimpan. Hari berat: `DayEntry.hardDay` (boolean, tanpa index, data lama = false), jatah 2×/minggu (turunan), hari itu netral untuk streak habit. Hari berat **hanya** memengaruhi habit: tidak menyentuh tugas, dan tidak pernah mengubah status atau tampilan sholat |
+| 12 | Habit berjangkar waktu sholat | Usulan default: **habit saja** (rutin F5 tidak, karena bentrok dengan override jam per kejadian). `Habit.anchor = { prayer, offsetMin }` (−120…120), eksklusif dengan `targetTime`, tanpa index. Jam dihitung `resolveHabitTime(...)` di zona lokasi lalu dikonversi ke zona perangkat (§F2 Zona). Tanpa lokasi: label "Setelah Subuh" tanpa jam, diurutkan di akhir |
+| 13 | Habit n×/minggu | Hanya dibangun jika diminta peserta beta; habit berhitung tidak dibangun (tilawah punya log sendiri) |

@@ -105,7 +105,9 @@ research/                  # TIDAK ADA di repo ini. Lihat "Larangan".
 ### Keamanan dan privasi
 - Jangan pakai `{@html}` dengan data apa pun yang berasal dari user atau file impor.
 - Impor JSON wajib divalidasi dengan Valibot sebelum menyentuh database.
-- Tidak ada request jaringan selain aset app sendiri dan Cloudflare Web Analytics. Jangan menambah SDK pihak ketiga.
+- Tidak ada request jaringan selain aset app sendiri: tanpa analytics, tanpa skrip/SDK pihak ketiga (PRD §8, §9).
+- Izin sensitif (notifikasi, geolokasi, `storage.persist()`) hanya diminta dari handler ketukan user, tidak pernah saat load.
+- Impor = ganti semua data (tanpa merge); file > 5 MB ditolak sebelum `JSON.parse`, validasi `strictObject` memakai validator domain (PRD §F8.6).
 - CSP dan header keamanan dikelola di `static/_headers`.
 
 ## Cara bekerja
